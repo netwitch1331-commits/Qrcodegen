@@ -3,10 +3,161 @@ import QRCode from "qrcode";
 import type { QrCodeStyle } from "@workspace/api-client-react";
 import { motion, AnimatePresence } from "framer-motion";
 
+export type FrameStyle = "none" | "simple" | "rounded" | "double" | "corners" | "scan" | "dots" | "neon";
+
+export type ExtendedQrStyle = QrCodeStyle & {
+  frameStyle?: FrameStyle;
+  frameColor?: string;
+};
+
 interface QrPreviewProps {
   content: string;
-  styleConfig: QrCodeStyle;
+  styleConfig: ExtendedQrStyle;
   onGenerated?: () => void;
+}
+
+function getFgColor(style: ExtendedQrStyle): string {
+  if (style.gradient?.colorStart) return style.gradient.colorStart;
+  return style.fgColor || "#8b5cf6";
+}
+
+function drawFrame(
+  ctx: CanvasRenderingContext2D,
+  canvasW: number,
+  canvasH: number,
+  qrX: number,
+  qrY: number,
+  qrSize: number,
+  frameStyle: FrameStyle,
+  frameColor: string,
+  bgColor: string,
+  style: ExtendedQrStyle,
+) {
+  const fc = frameColor;
+  ctx.save();
+
+  switch (frameStyle) {
+    case "simple": {
+      ctx.strokeStyle = fc;
+      ctx.lineWidth = 12;
+      ctx.strokeRect(qrX - 24, qrY - 24, qrSize + 48, qrSize + 48);
+      break;
+    }
+
+    case "rounded": {
+      const r = 48;
+      const x = qrX - 30;
+      const y = qrY - 30;
+      const w = qrSize + 60;
+      const h = qrSize + 60;
+      ctx.strokeStyle = fc;
+      ctx.lineWidth = 14;
+      ctx.beginPath();
+      ctx.roundRect(x, y, w, h, r);
+      ctx.stroke();
+      break;
+    }
+
+    case "double": {
+      ctx.strokeStyle = fc;
+      ctx.lineWidth = 8;
+      ctx.strokeRect(qrX - 20, qrY - 20, qrSize + 40, qrSize + 40);
+      ctx.lineWidth = 4;
+      ctx.strokeRect(qrX - 34, qrY - 34, qrSize + 68, qrSize + 68);
+      break;
+    }
+
+    case "corners": {
+      const arm = 80;
+      const thick = 18;
+      const gap = 28;
+      const corners: [number, number, number, number][] = [
+        [qrX - gap, qrY - gap, 1, 1],
+        [qrX + qrSize + gap, qrY - gap, -1, 1],
+        [qrX - gap, qrY + qrSize + gap, 1, -1],
+        [qrX + qrSize + gap, qrY + qrSize + gap, -1, -1],
+      ];
+      ctx.fillStyle = fc;
+      for (const [cx, cy, dx, dy] of corners) {
+        ctx.fillRect(cx, cy, dx * arm, dy * thick);
+        ctx.fillRect(cx, cy, dx * thick, dy * arm);
+      }
+      break;
+    }
+
+    case "scan": {
+      const r = 40;
+      const padX = qrX - 32;
+      const padY = qrY - 32;
+      const padW = qrSize + 64;
+      const labelH = 110;
+      const totalH = padW + labelH;
+
+      ctx.strokeStyle = fc;
+      ctx.lineWidth = 12;
+      ctx.beginPath();
+      ctx.roundRect(padX, padY, padW, totalH, r);
+      ctx.stroke();
+
+      ctx.fillStyle = fc;
+      ctx.beginPath();
+      ctx.roundRect(padX, padY + padW, padW, labelH, [0, 0, r, r]);
+      ctx.fill();
+
+      ctx.fillStyle = bgColor;
+      ctx.font = `bold ${Math.round(padW * 0.085)}px 'Outfit', 'DM Sans', sans-serif`;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      ctx.fillText("СКАНИРУЙ МЕНЯ", padX + padW / 2, padY + padW + labelH / 2);
+      break;
+    }
+
+    case "dots": {
+      ctx.strokeStyle = fc;
+      ctx.lineWidth = 10;
+      ctx.setLineDash([18, 16]);
+      ctx.lineDashOffset = 0;
+      const r = 32;
+      ctx.beginPath();
+      ctx.roundRect(qrX - 28, qrY - 28, qrSize + 56, qrSize + 56, r);
+      ctx.stroke();
+      ctx.setLineDash([]);
+      break;
+    }
+
+    case "neon": {
+      const r = 36;
+      const x = qrX - 26;
+      const y = qrY - 26;
+      const w = qrSize + 52;
+      const h = qrSize + 52;
+
+      const glowColors = [
+        { blur: 40, alpha: 0.35 },
+        { blur: 20, alpha: 0.55 },
+        { blur: 8, alpha: 0.9 },
+        { blur: 0, alpha: 1 },
+      ];
+
+      for (const g of glowColors) {
+        ctx.shadowColor = fc;
+        ctx.shadowBlur = g.blur;
+        ctx.strokeStyle = fc + Math.round(g.alpha * 255).toString(16).padStart(2, "0");
+        ctx.lineWidth = 6;
+        ctx.beginPath();
+        ctx.roundRect(x, y, w, h, r);
+        ctx.stroke();
+      }
+      ctx.shadowBlur = 0;
+      ctx.shadowColor = "transparent";
+      break;
+    }
+
+    default:
+      break;
+  }
+
+  ctx.restore();
 }
 
 export function QrPreview({ content, styleConfig, onGenerated }: QrPreviewProps) {
@@ -23,17 +174,33 @@ export function QrPreview({ content, styleConfig, onGenerated }: QrPreviewProps)
       setIsGenerating(true);
 
       try {
-        const size = 800;
-        canvas.width = size;
-        canvas.height = size;
+        const frameStyle: FrameStyle = (styleConfig as ExtendedQrStyle).frameStyle || "none";
+        const bgColor = styleConfig.bgColor || "#121217";
+        const frameColor = (styleConfig as ExtendedQrStyle).frameColor || getFgColor(styleConfig);
+
+        // Canvas dimensions: leave room for frame
+        const canvasSize = 960;
+        const padding = frameStyle === "none" ? 0 : 130;
+        const labelExtra = frameStyle === "scan" ? 140 : 0;
+        const qrSize = canvasSize - padding * 2;
+        const canvasH = canvasSize + labelExtra;
+        const qrX = padding;
+        const qrY = padding;
+
+        canvas.width = canvasSize;
+        canvas.height = canvasH;
+
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
-        ctx.clearRect(0, 0, size, size);
+        // Background
+        ctx.fillStyle = bgColor;
+        ctx.fillRect(0, 0, canvasSize, canvasH);
 
+        // Generate QR at qrSize
         const qrDataUrl = await QRCode.toDataURL(content || "https://qreate.app", {
           margin: 2,
-          width: size,
+          width: qrSize,
           color: { dark: "#000000ff", light: "#00000000" },
           errorCorrectionLevel: (styleConfig.errorCorrectionLevel as "L" | "M" | "Q" | "H") || "H",
         });
@@ -49,20 +216,27 @@ export function QrPreview({ content, styleConfig, onGenerated }: QrPreviewProps)
 
         if (!isMounted) return;
 
-        ctx.drawImage(qrImg, 0, 0, size, size);
-        ctx.globalCompositeOperation = "source-in";
+        // Draw QR into a temp canvas to apply coloring via compositing
+        const tmp = document.createElement("canvas");
+        tmp.width = qrSize;
+        tmp.height = qrSize;
+        const tc = tmp.getContext("2d")!;
+
+        tc.clearRect(0, 0, qrSize, qrSize);
+        tc.drawImage(qrImg, 0, 0, qrSize, qrSize);
+        tc.globalCompositeOperation = "source-in";
 
         if (styleConfig.gradient?.colorStart && styleConfig.gradient?.colorEnd) {
           let grad: CanvasGradient;
           if (styleConfig.gradient.type === "radial") {
-            grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+            grad = tc.createRadialGradient(qrSize / 2, qrSize / 2, 0, qrSize / 2, qrSize / 2, qrSize / 2);
           } else {
             const angleDeg = styleConfig.gradient.rotation ?? 135;
             const angle = (angleDeg * Math.PI) / 180;
-            const cx = size / 2;
-            const cy = size / 2;
-            const r = size / 2;
-            grad = ctx.createLinearGradient(
+            const cx = qrSize / 2;
+            const cy = qrSize / 2;
+            const r = qrSize / 2;
+            grad = tc.createLinearGradient(
               cx - Math.cos(angle) * r,
               cy - Math.sin(angle) * r,
               cx + Math.cos(angle) * r,
@@ -71,19 +245,16 @@ export function QrPreview({ content, styleConfig, onGenerated }: QrPreviewProps)
           }
           grad.addColorStop(0, styleConfig.gradient.colorStart);
           grad.addColorStop(1, styleConfig.gradient.colorEnd);
-          ctx.fillStyle = grad;
+          tc.fillStyle = grad;
         } else {
-          ctx.fillStyle = styleConfig.fgColor || "#ffffff";
+          tc.fillStyle = styleConfig.fgColor || "#ffffff";
         }
+        tc.fillRect(0, 0, qrSize, qrSize);
 
-        ctx.fillRect(0, 0, size, size);
+        // Draw colored QR onto main canvas
+        ctx.drawImage(tmp, qrX, qrY, qrSize, qrSize);
 
-        ctx.globalCompositeOperation = "destination-over";
-        ctx.fillStyle = styleConfig.bgColor || "#121217";
-        ctx.fillRect(0, 0, size, size);
-
-        ctx.globalCompositeOperation = "source-over";
-
+        // Logo overlay
         if (styleConfig.logoUrl) {
           try {
             const logo = new Image();
@@ -93,35 +264,27 @@ export function QrPreview({ content, styleConfig, onGenerated }: QrPreviewProps)
               logo.onerror = reject;
               logo.src = styleConfig.logoUrl!;
             });
-
             const ratio = styleConfig.logoSize ?? 0.2;
-            const logoSize = size * ratio;
-            const offset = (size - logoSize) / 2;
-            const pad = 16;
-
-            ctx.fillStyle = styleConfig.bgColor || "#121217";
+            const lSize = qrSize * ratio;
+            const lOff = (qrSize - lSize) / 2;
+            const pad = 14;
+            ctx.fillStyle = bgColor;
+            const rx = qrX + lOff - pad;
+            const ry = qrY + lOff - pad;
+            const rw = lSize + pad * 2;
+            const rh = lSize + pad * 2;
             ctx.beginPath();
-            const r = 16;
-            const x = offset - pad;
-            const y = offset - pad;
-            const w = logoSize + pad * 2;
-            const h = logoSize + pad * 2;
-            ctx.moveTo(x + r, y);
-            ctx.lineTo(x + w - r, y);
-            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
-            ctx.lineTo(x + w, y + h - r);
-            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
-            ctx.lineTo(x + r, y + h);
-            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
-            ctx.lineTo(x, y + r);
-            ctx.quadraticCurveTo(x, y, x + r, y);
-            ctx.closePath();
+            ctx.roundRect(rx, ry, rw, rh, 14);
             ctx.fill();
-
-            ctx.drawImage(logo, offset, offset, logoSize, logoSize);
+            ctx.drawImage(logo, qrX + lOff, qrY + lOff, lSize, lSize);
           } catch {
-            // некритичная ошибка загрузки логотипа
+            // non-critical
           }
+        }
+
+        // Draw frame on top
+        if (frameStyle !== "none") {
+          drawFrame(ctx, canvasSize, canvasH, qrX, qrY, qrSize, frameStyle, frameColor, bgColor, styleConfig);
         }
 
         if (isMounted) {
@@ -143,7 +306,7 @@ export function QrPreview({ content, styleConfig, onGenerated }: QrPreviewProps)
   }, [content, styleConfig]);
 
   return (
-    <div className="relative w-full aspect-square rounded-[2rem] overflow-hidden glass-card flex items-center justify-center p-6">
+    <div className="relative w-full aspect-square rounded-[2rem] overflow-hidden glass-card flex items-center justify-center p-4">
       <AnimatePresence>
         {isGenerating && (
           <motion.div
@@ -164,7 +327,7 @@ export function QrPreview({ content, styleConfig, onGenerated }: QrPreviewProps)
         animate={{ opacity: hasGenerated ? 1 : 0, scale: hasGenerated ? 1 : 0.95 }}
         transition={{ duration: 0.4 }}
         className="w-full h-full object-contain rounded-2xl"
-        style={{ imageRendering: "pixelated" }}
+        style={{ imageRendering: "auto" }}
       />
 
       {!hasGenerated && !isGenerating && (

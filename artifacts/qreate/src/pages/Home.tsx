@@ -1,6 +1,6 @@
 import { useState, useMemo, useCallback, useRef } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { QrPreview } from "@/components/qr/QrPreview";
+import { QrPreview, type ExtendedQrStyle, type FrameStyle } from "@/components/qr/QrPreview";
 import { ColorPickerPopover } from "@/components/qr/ColorPickerPopover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
@@ -11,11 +11,99 @@ import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { QrCodeStyle } from "@workspace/api-client-react";
 import { exportQrCode } from "@/lib/export-qr";
 import { saveQrCode } from "@/lib/local-storage";
 import { Download, Link as LinkIcon, Type, Mail, Phone, Wifi, Image as ImageIcon, Save, Sparkles, CheckCircle2 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
+
+const FRAMES: { id: FrameStyle; label: string; icon: React.ReactNode }[] = [
+  {
+    id: "none",
+    label: "Нет",
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" className="w-8 h-8 opacity-40">
+        <rect x="10" y="10" width="28" height="28" rx="2" stroke="currentColor" strokeWidth="2" strokeDasharray="4 4" />
+      </svg>
+    ),
+  },
+  {
+    id: "simple",
+    label: "Простая",
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" className="w-8 h-8">
+        <rect x="8" y="8" width="32" height="32" rx="2" stroke="currentColor" strokeWidth="3" />
+        <rect x="14" y="14" width="20" height="20" rx="1" fill="currentColor" opacity="0.15" />
+      </svg>
+    ),
+  },
+  {
+    id: "rounded",
+    label: "Скруглённая",
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" className="w-8 h-8">
+        <rect x="6" y="6" width="36" height="36" rx="12" stroke="currentColor" strokeWidth="3" />
+        <rect x="14" y="14" width="20" height="20" rx="4" fill="currentColor" opacity="0.15" />
+      </svg>
+    ),
+  },
+  {
+    id: "double",
+    label: "Двойная",
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" className="w-8 h-8">
+        <rect x="5" y="5" width="38" height="38" rx="2" stroke="currentColor" strokeWidth="2" />
+        <rect x="10" y="10" width="28" height="28" rx="2" stroke="currentColor" strokeWidth="2" />
+        <rect x="16" y="16" width="16" height="16" rx="1" fill="currentColor" opacity="0.15" />
+      </svg>
+    ),
+  },
+  {
+    id: "corners",
+    label: "Уголки",
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" className="w-8 h-8">
+        <path d="M8 18V8H18" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M30 8H40V18" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M40 30V40H30" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        <path d="M18 40H8V30" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" />
+        <rect x="16" y="16" width="16" height="16" rx="1" fill="currentColor" opacity="0.15" />
+      </svg>
+    ),
+  },
+  {
+    id: "dots",
+    label: "Пунктир",
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" className="w-8 h-8">
+        <rect x="8" y="8" width="32" height="32" rx="6" stroke="currentColor" strokeWidth="2.5" strokeDasharray="5 4" />
+        <rect x="15" y="15" width="18" height="18" rx="1" fill="currentColor" opacity="0.15" />
+      </svg>
+    ),
+  },
+  {
+    id: "neon",
+    label: "Неон",
+    icon: (
+      <svg viewBox="0 0 48 48" fill="none" className="w-8 h-8">
+        <rect x="7" y="7" width="34" height="34" rx="8" stroke="currentColor" strokeWidth="2.5" opacity="0.4" />
+        <rect x="7" y="7" width="34" height="34" rx="8" stroke="currentColor" strokeWidth="2" />
+        <rect x="15" y="15" width="18" height="18" rx="1" fill="currentColor" opacity="0.15" />
+      </svg>
+    ),
+  },
+  {
+    id: "scan",
+    label: "Скан",
+    icon: (
+      <svg viewBox="0 0 48 56" fill="none" className="w-8 h-9">
+        <rect x="6" y="4" width="36" height="44" rx="6" stroke="currentColor" strokeWidth="2.5" />
+        <rect x="12" y="10" width="24" height="24" rx="1" fill="currentColor" opacity="0.15" />
+        <rect x="6" y="37" width="36" height="11" rx="0" fill="currentColor" opacity="0.5" />
+        <rect x="6" y="37" width="36" height="11" rx="6" fill="currentColor" opacity="0.5" style={{ clipPath: "inset(0 0 50% 0)" }} />
+      </svg>
+    ),
+  },
+];
 
 type QrCodeType = "url" | "text" | "email" | "phone" | "sms" | "wifi" | "vcard" | "event" | "payment";
 
@@ -47,13 +135,15 @@ export default function Home() {
     encryption: "WPA",
   });
 
-  const [style, setStyle] = useState<QrCodeStyle>({
+  const [style, setStyle] = useState<ExtendedQrStyle>({
     fgColor: "#ffffff",
     bgColor: "#121217",
     errorCorrectionLevel: "H",
     logoUrl: "",
     logoSize: 0.2,
     gradient: { type: "linear", colorStart: "#8b5cf6", colorEnd: "#d946ef", rotation: 45 },
+    frameStyle: "none",
+    frameColor: "",
   });
 
   const [useGradient, setUseGradient] = useState(true);
@@ -367,7 +457,41 @@ export default function Home() {
               </TabsContent>
 
               <TabsContent value="design" className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
+                {/* Frame Picker */}
                 <div className="space-y-4">
+                  <Label>Стиль рамки</Label>
+                  <div className="grid grid-cols-4 gap-3">
+                    {FRAMES.map((f) => {
+                      const isActive = (style.frameStyle || "none") === f.id;
+                      return (
+                        <button
+                          key={f.id}
+                          onClick={() => setStyle((s) => ({ ...s, frameStyle: f.id }))}
+                          className={`flex flex-col items-center gap-2 py-3 px-2 rounded-2xl border transition-all duration-200 ${
+                            isActive
+                              ? "bg-primary/20 border-primary text-white shadow-lg shadow-primary/20"
+                              : "bg-black/20 border-white/5 text-muted-foreground hover:bg-white/5 hover:text-white"
+                          }`}
+                        >
+                          {f.icon}
+                          <span className="text-[11px] font-medium leading-none">{f.label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {(style.frameStyle && style.frameStyle !== "none") && (
+                    <div className="space-y-3 pt-2">
+                      <Label>Цвет рамки</Label>
+                      <ColorPickerPopover
+                        color={style.frameColor || style.gradient?.colorStart || style.fgColor || "#8b5cf6"}
+                        onChange={(c) => setStyle((s) => ({ ...s, frameColor: c }))}
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="space-y-4 pt-4 border-t border-white/5">
                   <Label>URL логотипа (необязательно)</Label>
                   <div className="flex gap-3">
                     <div className="flex-1 relative">
