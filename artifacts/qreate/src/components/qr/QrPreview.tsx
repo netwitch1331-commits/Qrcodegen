@@ -6,9 +6,10 @@ import { motion, AnimatePresence } from "framer-motion";
 interface QrPreviewProps {
   content: string;
   styleConfig: QrCodeStyle;
+  onGenerated?: () => void;
 }
 
-export function QrPreview({ content, styleConfig }: QrPreviewProps) {
+export function QrPreview({ content, styleConfig, onGenerated }: QrPreviewProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasGenerated, setHasGenerated] = useState(false);
@@ -28,7 +29,6 @@ export function QrPreview({ content, styleConfig }: QrPreviewProps) {
         const ctx = canvas.getContext("2d");
         if (!ctx) return;
 
-        // 1. Start with a fully transparent canvas, draw QR (black on transparent)
         ctx.clearRect(0, 0, size, size);
 
         const qrDataUrl = await QRCode.toDataURL(content || "https://qreate.app", {
@@ -49,10 +49,7 @@ export function QrPreview({ content, styleConfig }: QrPreviewProps) {
 
         if (!isMounted) return;
 
-        // 2. Draw QR dots (black on transparent) — only dot pixels have alpha > 0
         ctx.drawImage(qrImg, 0, 0, size, size);
-
-        // 3. "source-in": new fill visible only where QR dots exist (alpha > 0)
         ctx.globalCompositeOperation = "source-in";
 
         if (styleConfig.gradient?.colorStart && styleConfig.gradient?.colorEnd) {
@@ -81,15 +78,12 @@ export function QrPreview({ content, styleConfig }: QrPreviewProps) {
 
         ctx.fillRect(0, 0, size, size);
 
-        // 4. Draw background BEHIND the colored QR dots using destination-over
         ctx.globalCompositeOperation = "destination-over";
         ctx.fillStyle = styleConfig.bgColor || "#121217";
         ctx.fillRect(0, 0, size, size);
 
-        // Back to normal compositing
         ctx.globalCompositeOperation = "source-over";
 
-        // 5. Optional logo
         if (styleConfig.logoUrl) {
           try {
             const logo = new Image();
@@ -126,13 +120,16 @@ export function QrPreview({ content, styleConfig }: QrPreviewProps) {
 
             ctx.drawImage(logo, offset, offset, logoSize, logoSize);
           } catch {
-            // logo load failure is non-fatal
+            // некритичная ошибка загрузки логотипа
           }
         }
 
-        if (isMounted) setHasGenerated(true);
+        if (isMounted) {
+          setHasGenerated(true);
+          onGenerated?.();
+        }
       } catch (error) {
-        console.error("QR Generation failed", error);
+        console.error("Ошибка генерации QR-кода:", error);
       } finally {
         if (isMounted) setIsGenerating(false);
       }

@@ -19,21 +19,21 @@ export function Navbar() {
 
         <nav className="hidden md:flex items-center gap-1">
           <Link href="/">
-            <Button 
-              variant="ghost" 
-              className={`rounded-full px-6 transition-all ${location === '/' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}
+            <Button
+              variant="ghost"
+              className={`rounded-full px-6 transition-all ${location === "/" ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white hover:bg-white/5"}`}
             >
               <Sparkles className="w-4 h-4 mr-2" />
-              Generator
+              Генератор
             </Button>
           </Link>
           <Link href="/history">
-            <Button 
-              variant="ghost" 
-              className={`rounded-full px-6 transition-all ${location === '/history' ? 'bg-white/10 text-white' : 'text-muted-foreground hover:text-white hover:bg-white/5'}`}
+            <Button
+              variant="ghost"
+              className={`rounded-full px-6 transition-all ${location === "/history" ? "bg-white/10 text-white" : "text-muted-foreground hover:text-white hover:bg-white/5"}`}
             >
               <LayoutGrid className="w-4 h-4 mr-2" />
-              History
+              История
             </Button>
           </Link>
         </nav>
