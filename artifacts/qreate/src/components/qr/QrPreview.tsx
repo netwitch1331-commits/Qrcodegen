@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import type { QrCodeStyle } from "@workspace/api-client-react";
-import { Skeleton } from "@/components/ui/skeleton";
 import { motion, AnimatePresence } from "framer-motion";
 
 interface QrPreviewProps {
@@ -10,26 +9,128 @@ interface QrPreviewProps {
 }
 
 export function QrPreview({ content, styleConfig }: QrPreviewProps) {
-  const [qrMaskUrl, setQrMaskUrl] = useState<string>("");
+  const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [hasGenerated, setHasGenerated] = useState(false);
 
   useEffect(() => {
     let isMounted = true;
-    
+
     const generateQr = async () => {
+      const canvas = canvasRef.current;
+      if (!canvas) return;
       setIsGenerating(true);
+
       try {
-        // Generate a black QR code with transparent background to use as a CSS mask
-        const url = await QRCode.toDataURL(content || "https://qreate.app", {
+        const size = 800;
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return;
+
+        // 1. Start with a fully transparent canvas, draw QR (black on transparent)
+        ctx.clearRect(0, 0, size, size);
+
+        const qrDataUrl = await QRCode.toDataURL(content || "https://qreate.app", {
           margin: 2,
-          width: 800, // high res for sharpness
-          color: { dark: "#000000", light: "#00000000" },
-          errorCorrectionLevel: styleConfig.errorCorrectionLevel || "M"
+          width: size,
+          color: { dark: "#000000ff", light: "#00000000" },
+          errorCorrectionLevel: (styleConfig.errorCorrectionLevel as "L" | "M" | "Q" | "H") || "H",
         });
-        
-        if (isMounted) {
-          setQrMaskUrl(`url(${url})`);
+
+        if (!isMounted) return;
+
+        const qrImg = new Image();
+        await new Promise<void>((resolve, reject) => {
+          qrImg.onload = () => resolve();
+          qrImg.onerror = reject;
+          qrImg.src = qrDataUrl;
+        });
+
+        if (!isMounted) return;
+
+        // 2. Draw QR dots (black on transparent) — only dot pixels have alpha > 0
+        ctx.drawImage(qrImg, 0, 0, size, size);
+
+        // 3. "source-in": new fill visible only where QR dots exist (alpha > 0)
+        ctx.globalCompositeOperation = "source-in";
+
+        if (styleConfig.gradient?.colorStart && styleConfig.gradient?.colorEnd) {
+          let grad: CanvasGradient;
+          if (styleConfig.gradient.type === "radial") {
+            grad = ctx.createRadialGradient(size / 2, size / 2, 0, size / 2, size / 2, size / 2);
+          } else {
+            const angleDeg = styleConfig.gradient.rotation ?? 135;
+            const angle = (angleDeg * Math.PI) / 180;
+            const cx = size / 2;
+            const cy = size / 2;
+            const r = size / 2;
+            grad = ctx.createLinearGradient(
+              cx - Math.cos(angle) * r,
+              cy - Math.sin(angle) * r,
+              cx + Math.cos(angle) * r,
+              cy + Math.sin(angle) * r,
+            );
+          }
+          grad.addColorStop(0, styleConfig.gradient.colorStart);
+          grad.addColorStop(1, styleConfig.gradient.colorEnd);
+          ctx.fillStyle = grad;
+        } else {
+          ctx.fillStyle = styleConfig.fgColor || "#ffffff";
         }
+
+        ctx.fillRect(0, 0, size, size);
+
+        // 4. Draw background BEHIND the colored QR dots using destination-over
+        ctx.globalCompositeOperation = "destination-over";
+        ctx.fillStyle = styleConfig.bgColor || "#121217";
+        ctx.fillRect(0, 0, size, size);
+
+        // Back to normal compositing
+        ctx.globalCompositeOperation = "source-over";
+
+        // 5. Optional logo
+        if (styleConfig.logoUrl) {
+          try {
+            const logo = new Image();
+            logo.crossOrigin = "anonymous";
+            await new Promise<void>((resolve, reject) => {
+              logo.onload = () => resolve();
+              logo.onerror = reject;
+              logo.src = styleConfig.logoUrl!;
+            });
+
+            const ratio = styleConfig.logoSize ?? 0.2;
+            const logoSize = size * ratio;
+            const offset = (size - logoSize) / 2;
+            const pad = 16;
+
+            ctx.fillStyle = styleConfig.bgColor || "#121217";
+            ctx.beginPath();
+            const r = 16;
+            const x = offset - pad;
+            const y = offset - pad;
+            const w = logoSize + pad * 2;
+            const h = logoSize + pad * 2;
+            ctx.moveTo(x + r, y);
+            ctx.lineTo(x + w - r, y);
+            ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+            ctx.lineTo(x + w, y + h - r);
+            ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+            ctx.lineTo(x + r, y + h);
+            ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+            ctx.lineTo(x, y + r);
+            ctx.quadraticCurveTo(x, y, x + r, y);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.drawImage(logo, offset, offset, logoSize, logoSize);
+          } catch {
+            // logo load failure is non-fatal
+          }
+        }
+
+        if (isMounted) setHasGenerated(true);
       } catch (error) {
         console.error("QR Generation failed", error);
       } finally {
@@ -37,90 +138,41 @@ export function QrPreview({ content, styleConfig }: QrPreviewProps) {
       }
     };
 
-    // Debounce slightly to prevent lag while typing
-    const timeout = setTimeout(generateQr, 300);
+    const timeout = setTimeout(generateQr, 250);
     return () => {
       isMounted = false;
       clearTimeout(timeout);
     };
-  }, [content, styleConfig.errorCorrectionLevel]);
-
-  // Determine foreground styling
-  const fgStyle: React.CSSProperties = {};
-  if (styleConfig.gradient && styleConfig.gradient.colorStart && styleConfig.gradient.colorEnd) {
-    const isRadial = styleConfig.gradient.type === 'radial';
-    const angle = styleConfig.gradient.rotation || 90;
-    const c1 = styleConfig.gradient.colorStart;
-    const c2 = styleConfig.gradient.colorEnd;
-    
-    fgStyle.background = isRadial 
-      ? `radial-gradient(circle at center, ${c1}, ${c2})`
-      : `linear-gradient(${angle}deg, ${c1}, ${c2})`;
-  } else {
-    fgStyle.background = styleConfig.fgColor || "#ffffff";
-  }
-
-  // Determine logo layout
-  const logoSize = styleConfig.logoSize ? styleConfig.logoSize * 100 : 20;
+  }, [content, styleConfig]);
 
   return (
-    <div className="relative w-full aspect-square rounded-[2rem] overflow-hidden glass-card flex items-center justify-center p-8 sm:p-12 transition-all duration-500 hover:shadow-primary/20">
-      {/* Background layer */}
-      <div 
-        className="absolute inset-0 transition-colors duration-500" 
-        style={{ backgroundColor: styleConfig.bgColor || "#121217" }} 
-      />
-      
-      {/* The QR Code mapped via CSS Mask */}
-      <AnimatePresence mode="wait">
-        <motion.div 
-          key={qrMaskUrl}
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 1.05 }}
-          transition={{ duration: 0.3 }}
-          className="relative w-full h-full flex items-center justify-center"
-        >
-          {qrMaskUrl ? (
-            <>
-              {/* The actual colored QR code */}
-              <div 
-                className="absolute inset-0 qr-mask transition-all duration-300"
-                style={{ 
-                  ...fgStyle,
-                  maskImage: qrMaskUrl,
-                  WebkitMaskImage: qrMaskUrl
-                }}
-              />
-              
-              {/* Optional Logo */}
-              {styleConfig.logoUrl && (
-                <div 
-                  className="absolute z-10 rounded-xl overflow-hidden shadow-2xl flex items-center justify-center p-2"
-                  style={{ 
-                    width: `${logoSize}%`, 
-                    height: `${logoSize}%`,
-                    backgroundColor: styleConfig.bgColor || "#121217"
-                  }}
-                >
-                  <img 
-                    src={styleConfig.logoUrl} 
-                    alt="QR Logo" 
-                    className="w-full h-full object-contain rounded-lg"
-                  />
-                </div>
-              )}
-            </>
-          ) : (
-            <Skeleton className="w-full h-full rounded-2xl opacity-20" />
-          )}
-        </motion.div>
+    <div className="relative w-full aspect-square rounded-[2rem] overflow-hidden glass-card flex items-center justify-center p-6">
+      <AnimatePresence>
+        {isGenerating && (
+          <motion.div
+            key="spinner"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="absolute inset-0 flex items-center justify-center z-10 bg-black/20 backdrop-blur-sm"
+          >
+            <div className="w-10 h-10 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          </motion.div>
+        )}
       </AnimatePresence>
 
-      {/* Loading overlay indicator */}
-      {isGenerating && (
-        <div className="absolute inset-0 bg-black/10 backdrop-blur-[2px] flex items-center justify-center z-20">
-          <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+      <motion.canvas
+        ref={canvasRef}
+        initial={{ opacity: 0, scale: 0.95 }}
+        animate={{ opacity: hasGenerated ? 1 : 0, scale: hasGenerated ? 1 : 0.95 }}
+        transition={{ duration: 0.4 }}
+        className="w-full h-full object-contain rounded-2xl"
+        style={{ imageRendering: "pixelated" }}
+      />
+
+      {!hasGenerated && !isGenerating && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <div className="w-12 h-12 rounded-full border-2 border-primary/40 border-t-primary animate-spin" />
         </div>
       )}
     </div>
