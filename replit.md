@@ -1,8 +1,8 @@
-# Workspace
+# QReate — QR Code Generator
 
 ## Overview
 
-pnpm workspace monorepo using TypeScript. Each package manages its own dependencies.
+A premium QR code generator web app for digital natives and small businesses. Modern glassmorphism dark UI with smooth animations, full QR customization, history management, and analytics.
 
 ## Stack
 
@@ -10,87 +10,70 @@ pnpm workspace monorepo using TypeScript. Each package manages its own dependenc
 - **Node.js version**: 24
 - **Package manager**: pnpm
 - **TypeScript version**: 5.9
-- **API framework**: Express 5
+- **Frontend**: React + Vite (artifacts/qreate)
+- **API framework**: Express 5 (artifacts/api-server)
 - **Database**: PostgreSQL + Drizzle ORM
 - **Validation**: Zod (`zod/v4`), `drizzle-zod`
 - **API codegen**: Orval (from OpenAPI spec)
-- **Build**: esbuild (CJS bundle)
+- **QR Generation**: `qrcode` (client-side)
+- **UI**: Recharts (analytics), react-colorful (color pickers), framer-motion (animations)
 
 ## Structure
 
 ```text
-artifacts-monorepo/
-├── artifacts/              # Deployable applications
-│   └── api-server/         # Express API server
-├── lib/                    # Shared libraries
-│   ├── api-spec/           # OpenAPI spec + Orval codegen config
-│   ├── api-client-react/   # Generated React Query hooks
-│   ├── api-zod/            # Generated Zod schemas from OpenAPI
-│   └── db/                 # Drizzle ORM schema + DB connection
-├── scripts/                # Utility scripts (single workspace package)
-│   └── src/                # Individual .ts scripts, run via `pnpm --filter @workspace/scripts run <script>`
-├── pnpm-workspace.yaml     # pnpm workspace (artifacts/*, lib/*, lib/integrations/*, scripts)
-├── tsconfig.base.json      # Shared TS options (composite, bundler resolution, es2022)
-├── tsconfig.json           # Root TS project references
-└── package.json            # Root package with hoisted devDeps
+artifacts/
+├── api-server/         # Express API server
+└── qreate/             # React + Vite QR Code Generator app
+lib/
+├── api-spec/           # OpenAPI spec + Orval codegen config
+├── api-client-react/   # Generated React Query hooks
+├── api-zod/            # Generated Zod schemas from OpenAPI
+└── db/                 # Drizzle ORM schema + DB connection
+scripts/                # Utility scripts
 ```
 
-## TypeScript & Composite Projects
+## Features
 
-Every package extends `tsconfig.base.json` which sets `composite: true`. The root `tsconfig.json` lists all packages as project references. This means:
+1. **QR Generator** — 3-step flow: content type → data → customize
+   - Types: URL, text, email, phone, SMS, Wi-Fi, vCard, event
+   - Real-time live preview
+   - Client-side generation with `qrcode` package
 
-- **Always typecheck from the root** — run `pnpm run typecheck` (which runs `tsc --build --emitDeclarationOnly`). This builds the full dependency graph so that cross-package imports resolve correctly. Running `tsc` inside a single package will fail if its dependencies haven't been built yet.
-- **`emitDeclarationOnly`** — we only emit `.d.ts` files during typecheck; actual JS bundling is handled by esbuild/tsx/vite...etc, not `tsc`.
-- **Project references** — when package A depends on package B, A's `tsconfig.json` must list B in its `references` array. `tsc --build` uses this to determine build order and skip up-to-date packages.
+2. **Customization**
+   - Color pickers (fg/bg) via react-colorful
+   - Dot styles (square, rounded, dots, classy)
+   - Gradient support (linear/radial)
+   - Logo upload in center
+   - Error correction level (L/M/Q/H)
 
-## Root Scripts
+3. **Export** — PNG, SVG, copy to clipboard
 
-- `pnpm run build` — runs `typecheck` first, then recursively runs `build` in all packages that define it
-- `pnpm run typecheck` — runs `tsc --build --emitDeclarationOnly` using project references
+4. **History Page** (`/history`) — saved QR codes with search, sort, rename, delete
 
-## Packages
+5. **Analytics** — scan tracking (geo, device, time) with Recharts charts
 
-### `artifacts/api-server` (`@workspace/api-server`)
+6. **Freemium UI** — upgrade prompt overlay for analytics (premium feature)
 
-Express 5 API server. Routes live in `src/routes/` and use `@workspace/api-zod` for request and response validation and `@workspace/db` for persistence.
+7. **Dark/Light mode** — persisted in localStorage
 
-- Entry: `src/index.ts` — reads `PORT`, starts Express
-- App setup: `src/app.ts` — mounts CORS, JSON/urlencoded parsing, routes at `/api`
-- Routes: `src/routes/index.ts` mounts sub-routers; `src/routes/health.ts` exposes `GET /health` (full path: `/api/health`)
-- Depends on: `@workspace/db`, `@workspace/api-zod`
-- `pnpm --filter @workspace/api-server run dev` — run the dev server
-- `pnpm --filter @workspace/api-server run build` — production esbuild bundle (`dist/index.cjs`)
-- Build bundles an allowlist of deps (express, cors, pg, drizzle-orm, zod, etc.) and externalizes the rest
+## Database Schema
 
-### `lib/db` (`@workspace/db`)
+- `qr_codes` — QR code records with style JSONB, scan count
+- `scan_events` — individual scan events with geo, device, userAgent
 
-Database layer using Drizzle ORM with PostgreSQL. Exports a Drizzle client instance and schema models.
+## API Endpoints
 
-- `src/index.ts` — creates a `Pool` + Drizzle instance, exports schema
-- `src/schema/index.ts` — barrel re-export of all models
-- `src/schema/<modelname>.ts` — table definitions with `drizzle-zod` insert schemas (no models definitions exist right now)
-- `drizzle.config.ts` — Drizzle Kit config (requires `DATABASE_URL`, automatically provided by Replit)
-- Exports: `.` (pool, db, schema), `./schema` (schema only)
+- `GET /api/qrcodes` — list with search, sort
+- `POST /api/qrcodes` — create
+- `GET /api/qrcodes/:id` — get single
+- `PATCH /api/qrcodes/:id` — update
+- `DELETE /api/qrcodes/:id` — delete
+- `POST /api/qrcodes/:id/scan` — record a scan
+- `GET /api/qrcodes/:id/analytics` — get analytics
 
-Production migrations are handled by Replit when publishing. In development, we just use `pnpm --filter @workspace/db run push`, and we fallback to `pnpm --filter @workspace/db run push-force`.
+## Running
 
-### `lib/api-spec` (`@workspace/api-spec`)
-
-Owns the OpenAPI 3.1 spec (`openapi.yaml`) and the Orval config (`orval.config.ts`). Running codegen produces output into two sibling packages:
-
-1. `lib/api-client-react/src/generated/` — React Query hooks + fetch client
-2. `lib/api-zod/src/generated/` — Zod schemas
-
-Run codegen: `pnpm --filter @workspace/api-spec run codegen`
-
-### `lib/api-zod` (`@workspace/api-zod`)
-
-Generated Zod schemas from the OpenAPI spec (e.g. `HealthCheckResponse`). Used by `api-server` for response validation.
-
-### `lib/api-client-react` (`@workspace/api-client-react`)
-
-Generated React Query hooks and fetch client from the OpenAPI spec (e.g. `useHealthCheck`, `healthCheck`).
-
-### `scripts` (`@workspace/scripts`)
-
-Utility scripts package. Each script is a `.ts` file in `src/` with a corresponding npm script in `package.json`. Run scripts via `pnpm --filter @workspace/scripts run <script>`. Scripts can import any workspace package (e.g., `@workspace/db`) by adding it as a dependency in `scripts/package.json`.
+- API server: `pnpm --filter @workspace/api-server run dev`
+- Frontend: `pnpm --filter @workspace/qreate run dev`
+- DB schema push: `pnpm --filter @workspace/db run push`
+- Codegen: `pnpm --filter @workspace/api-spec run codegen`

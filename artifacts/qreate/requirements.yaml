@@ -1,0 +1,16 @@
+packages:
+  "qrcode": "Client-side QR code generation"
+  "@types/qrcode": "Types for qrcode"
+  "react-colorful": "Beautiful color pickers for QR customization"
+  "framer-motion": "Smooth page transitions and micro-interactions"
+  "recharts": "Analytics charts for scan data"
+  "date-fns": "Date formatting for history and charts"
+
+images:
+  - path: "artifacts/qreate/public/images/bg-mesh.png"
+    description: "Abstract dark glassmorphism gradient mesh background with deep violet, indigo, and subtle neon pink hues. High quality, smooth transitions, premium modern aesthetic, 8k resolution."
+    aspect_ratio: "16:9"
+
+notes:
+  - "Using qrcode npm package with canvas composition for exports to support gradients and logos."
+  - "Theme is forced to a dark premium glassmorphism aesthetic."

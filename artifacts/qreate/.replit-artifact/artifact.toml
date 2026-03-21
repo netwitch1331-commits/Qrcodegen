@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "QReate — QR Code Generator"
+version = "1.0.0"
+id = "artifacts/qreate"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19481
+
+[services.development]
+run = "pnpm --filter @workspace/qreate run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/qreate", "run", "build" ]
+publicDir = "artifacts/qreate/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19481"
+BASE_PATH = "/"

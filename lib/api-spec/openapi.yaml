@@ -3,13 +3,17 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: QReate - QR Code Generator API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: qrcodes
+    description: QR Code operations
+  - name: analytics
+    description: Analytics operations
 paths:
   /healthz:
     get:
@@ -24,6 +28,193 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /qrcodes:
+    get:
+      operationId: listQrCodes
+      tags: [qrcodes]
+      summary: List all QR codes
+      parameters:
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [createdAt, name, scans]
+            default: createdAt
+        - name: order
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of QR codes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/QrCode"
+                  total:
+                    type: integer
+                required:
+                  - data
+                  - total
+    post:
+      operationId: createQrCode
+      tags: [qrcodes]
+      summary: Create a new QR code
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateQrCodeInput"
+      responses:
+        "201":
+          description: Created QR code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrCode"
+        "400":
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qrcodes/{id}:
+    get:
+      operationId: getQrCode
+      tags: [qrcodes]
+      summary: Get a QR code by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: QR code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrCode"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    patch:
+      operationId: updateQrCode
+      tags: [qrcodes]
+      summary: Update a QR code
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateQrCodeInput"
+      responses:
+        "200":
+          description: Updated QR code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/QrCode"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+    delete:
+      operationId: deleteQrCode
+      tags: [qrcodes]
+      summary: Delete a QR code
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted successfully
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
+  /qrcodes/{id}/scan:
+    post:
+      operationId: recordScan
+      tags: [analytics]
+      summary: Record a scan event for a QR code
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ScanEventInput"
+      responses:
+        "200":
+          description: Scan recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ScanEvent"
+
+  /qrcodes/{id}/analytics:
+    get:
+      operationId: getQrCodeAnalytics
+      tags: [analytics]
+      summary: Get analytics for a QR code
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Analytics data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Analytics"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorResponse"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +225,208 @@ components:
       required:
         - status
 
+    QrCodeType:
+      type: string
+      enum: [url, text, email, phone, sms, wifi, vcard, event, payment]
+
+    QrCodeStyle:
+      type: object
+      properties:
+        fgColor:
+          type: string
+          description: Foreground color (hex)
+        bgColor:
+          type: string
+          description: Background color (hex)
+        dotStyle:
+          type: string
+          enum: [square, rounded, dots, classy, classy-rounded, extra-rounded]
+        cornerSquareStyle:
+          type: string
+          enum: [square, dot, extra-rounded]
+        cornerDotStyle:
+          type: string
+          enum: [square, dot]
+        gradient:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [linear, radial]
+            colorStart:
+              type: string
+            colorEnd:
+              type: string
+            rotation:
+              type: number
+        logoUrl:
+          type: string
+          description: URL or base64 data URL for logo in center
+        logoSize:
+          type: number
+          description: Logo size ratio (0.1 to 0.4)
+        errorCorrectionLevel:
+          type: string
+          enum: [L, M, Q, H]
+
+    QrCode:
+      type: object
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        type:
+          $ref: "#/components/schemas/QrCodeType"
+        content:
+          type: string
+          description: The encoded content (URL, text, vCard, etc.)
+        style:
+          $ref: "#/components/schemas/QrCodeStyle"
+        isDynamic:
+          type: boolean
+          description: Dynamic QR codes can have their content changed
+        dynamicUrl:
+          type: string
+          description: The redirect URL for dynamic QR codes
+        scans:
+          type: integer
+          description: Total number of scans
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - name
+        - type
+        - content
+        - style
+        - isDynamic
+        - scans
+        - createdAt
+        - updatedAt
+
+    CreateQrCodeInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        type:
+          $ref: "#/components/schemas/QrCodeType"
+        content:
+          type: string
+          minLength: 1
+        style:
+          $ref: "#/components/schemas/QrCodeStyle"
+        isDynamic:
+          type: boolean
+          default: false
+      required:
+        - name
+        - type
+        - content
+
+    UpdateQrCodeInput:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        content:
+          type: string
+          minLength: 1
+        style:
+          $ref: "#/components/schemas/QrCodeStyle"
+
+    ScanEventInput:
+      type: object
+      properties:
+        geo:
+          type: string
+          description: Geographic location (city, country)
+        device:
+          type: string
+          description: Device type (mobile, desktop, tablet)
+        userAgent:
+          type: string
+
+    ScanEvent:
+      type: object
+      properties:
+        id:
+          type: integer
+        qrCodeId:
+          type: integer
+        geo:
+          type: string
+        device:
+          type: string
+        scannedAt:
+          type: string
+          format: date-time
+      required:
+        - id
+        - qrCodeId
+        - scannedAt
+
+    Analytics:
+      type: object
+      properties:
+        totalScans:
+          type: integer
+        scansByDay:
+          type: array
+          items:
+            type: object
+            properties:
+              date:
+                type: string
+              count:
+                type: integer
+            required:
+              - date
+              - count
+        scansByDevice:
+          type: array
+          items:
+            type: object
+            properties:
+              device:
+                type: string
+              count:
+                type: integer
+            required:
+              - device
+              - count
+        scansByGeo:
+          type: array
+          items:
+            type: object
+            properties:
+              geo:
+                type: string
+              count:
+                type: integer
+            required:
+              - geo
+              - count
+      required:
+        - totalScans
+        - scansByDay
+        - scansByDevice
+        - scansByGeo
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+      required:
+        - error
+        - message
