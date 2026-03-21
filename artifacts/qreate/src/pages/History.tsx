@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
+import { useLocation } from "wouter";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { QrPreview } from "@/components/qr/QrPreview";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Search, MoreVertical, Trash2, Calendar, Link as LinkIcon, Download, ArrowUpDown } from "lucide-react";
+import { Search, MoreVertical, Trash2, Calendar, Link as LinkIcon, Download, ArrowUpDown, Pencil, Plus } from "lucide-react";
 import { format, parseISO } from "date-fns";
 import { ru } from "date-fns/locale";
 import { useToast } from "@/hooks/use-toast";
@@ -20,6 +21,7 @@ export default function History() {
   const [sort, setSort] = useState<SortKey>("createdAt");
   const [codes, setCodes] = useState<LocalQrCode[]>([]);
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const reload = useCallback(() => {
     setCodes(loadQrCodes());
@@ -43,7 +45,7 @@ export default function History() {
     if (confirm("Удалить этот QR-код?")) {
       deleteQrCode(id);
       reload();
-      toast({ title: "Удалено", description: "QR-код удалён из истории." });
+      toast({ title: "Удалено", description: "QR-код удалён из коллекции." });
     }
   };
 
@@ -54,25 +56,49 @@ export default function History() {
     });
   };
 
+  const handleEdit = (id: string) => {
+    navigate(`/?edit=${id}`);
+  };
+
   const sortLabel: Record<SortKey, string> = {
     createdAt: "По дате",
     name: "По названию",
+  };
+
+  const typeLabel: Record<string, string> = {
+    url: "Ссылка",
+    text: "Текст",
+    email: "Email",
+    phone: "Телефон",
+    wifi: "Wi-Fi",
+    sms: "SMS",
+    vcard: "Контакт",
+    location: "Геолокация",
+    event: "Событие",
+    whatsapp: "WhatsApp",
+    telegram: "Telegram",
   };
 
   return (
     <AppLayout>
       <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-3xl md:text-5xl font-black mb-2 font-display">Мои QR-коды</h1>
+          <h1 className="text-3xl md:text-5xl font-black mb-2 font-display">Моя коллекция</h1>
           <p className="text-muted-foreground text-lg">
-            {filtered.length > 0
-              ? `Сохранено в браузере: ${codes.length} шт.`
+            {codes.length > 0
+              ? `Сохранено в браузере: ${codes.length} ${declQrCode(codes.length)}`
               : "Здесь появятся ваши сохранённые QR-коды."}
           </p>
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="relative w-full md:w-64">
+          <Button
+            onClick={() => navigate("/")}
+            className="h-12 px-5 rounded-xl bg-gradient-to-r from-primary to-accent text-white border-0 hover:from-primary/90 hover:to-accent/90 shrink-0"
+          >
+            <Plus className="w-4 h-4 mr-2" /> Создать
+          </Button>
+          <div className="relative w-full md:w-56">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
             <Input
               placeholder="Поиск..."
@@ -108,11 +134,19 @@ export default function History() {
               <h3 className="text-xl font-bold mb-2">
                 {search ? "Ничего не найдено" : "Пока нет QR-кодов"}
               </h3>
-              <p className="text-muted-foreground">
+              <p className="text-muted-foreground mb-6">
                 {search
                   ? "Попробуйте другой запрос."
-                  : "Создайте первый QR-код в генераторе и сохраните его."}
+                  : "Создайте первый QR-код и сохраните его в коллекцию."}
               </p>
+              {!search && (
+                <Button
+                  onClick={() => navigate("/")}
+                  className="rounded-xl px-6 h-11 bg-gradient-to-r from-primary to-accent text-white border-0"
+                >
+                  <Plus className="w-4 h-4 mr-2" /> Создать QR-код
+                </Button>
+              )}
             </motion.div>
           ) : (
             filtered.map((qr) => (
@@ -130,7 +164,17 @@ export default function History() {
                   </div>
 
                   <div className="absolute inset-0 bg-foreground/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-[2rem] flex flex-col items-center justify-center gap-3">
-                    <Button onClick={() => handleDownload(qr)} className="rounded-full bg-background text-foreground hover:bg-background/80">
+                    <Button
+                      onClick={() => handleEdit(qr.id)}
+                      className="rounded-full bg-primary text-white hover:bg-primary/90 border-0 px-5"
+                    >
+                      <Pencil className="w-4 h-4 mr-2" /> Редактировать
+                    </Button>
+                    <Button
+                      onClick={() => handleDownload(qr)}
+                      variant="outline"
+                      className="rounded-full bg-background/80 border-border text-foreground hover:bg-background px-5"
+                    >
                       <Download className="w-4 h-4 mr-2" /> Скачать
                     </Button>
                   </div>
@@ -146,6 +190,9 @@ export default function History() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="glass-card border-border">
+                        <DropdownMenuItem onClick={() => handleEdit(qr.id)}>
+                          <Pencil className="w-4 h-4 mr-2" /> Редактировать
+                        </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDownload(qr)}>
                           <Download className="w-4 h-4 mr-2" /> Скачать PNG
                         </DropdownMenuItem>
@@ -159,9 +206,9 @@ export default function History() {
                     </DropdownMenu>
                   </div>
 
-                  <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                    <span className="flex items-center gap-1.5 bg-foreground/[0.06] px-2.5 py-1 rounded-md capitalize">
-                      {qr.type}
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
+                    <span className="flex items-center gap-1.5 bg-foreground/[0.06] px-2.5 py-1 rounded-md">
+                      {typeLabel[qr.type] ?? qr.type}
                     </span>
                     <span className="flex items-center gap-1.5">
                       <Calendar className="w-3.5 h-3.5" />
@@ -174,7 +221,15 @@ export default function History() {
           )}
         </AnimatePresence>
       </div>
-
     </AppLayout>
   );
+}
+
+function declQrCode(n: number): string {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return "QR-кодов";
+  if (mod10 === 1) return "QR-код";
+  if (mod10 >= 2 && mod10 <= 4) return "QR-кода";
+  return "QR-кодов";
 }

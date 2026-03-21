@@ -4,6 +4,7 @@ export interface LocalQrCode {
   type: string;
   content: string;
   style: Record<string, unknown>;
+  fields?: Record<string, unknown>;
   isDynamic: boolean;
   scans: number;
   createdAt: string;
@@ -22,7 +23,13 @@ export function loadQrCodes(): LocalQrCode[] {
   }
 }
 
-export function saveQrCode(qr: Omit<LocalQrCode, "id" | "scans" | "createdAt" | "updatedAt">): LocalQrCode {
+export function loadQrCode(id: string): LocalQrCode | undefined {
+  return loadQrCodes().find((c) => c.id === id);
+}
+
+export function saveQrCode(
+  qr: Omit<LocalQrCode, "id" | "scans" | "createdAt" | "updatedAt">,
+): LocalQrCode {
   const codes = loadQrCodes();
   const now = new Date().toISOString();
   const newCode: LocalQrCode = {
@@ -34,6 +41,16 @@ export function saveQrCode(qr: Omit<LocalQrCode, "id" | "scans" | "createdAt" | 
   };
   localStorage.setItem(STORAGE_KEY, JSON.stringify([newCode, ...codes]));
   return newCode;
+}
+
+export function updateQrCode(
+  id: string,
+  qr: Partial<Omit<LocalQrCode, "id" | "scans" | "createdAt">>,
+): void {
+  const codes = loadQrCodes().map((c) =>
+    c.id === id ? { ...c, ...qr, updatedAt: new Date().toISOString() } : c,
+  );
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(codes));
 }
 
 export function deleteQrCode(id: string): void {

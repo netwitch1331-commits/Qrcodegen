@@ -1,4 +1,5 @@
-import { useState, useMemo, useCallback, useRef } from "react";
+import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { useLocation } from "wouter";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { QrPreview, type ExtendedQrStyle, type FrameStyle } from "@/components/qr/QrPreview";
 import { ColorPickerPopover } from "@/components/qr/ColorPickerPopover";
@@ -12,11 +13,11 @@ import { Switch } from "@/components/ui/switch";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { exportQrCode } from "@/lib/export-qr";
-import { saveQrCode } from "@/lib/local-storage";
+import { saveQrCode, updateQrCode, loadQrCode } from "@/lib/local-storage";
 import {
   Download, Link as LinkIcon, Type, Mail, Phone, Wifi,
   Image as ImageIcon, Save, Sparkles, CheckCircle2,
-  MessageSquare, User, MapPin, CalendarDays, Send,
+  MessageSquare, User, MapPin, CalendarDays, Send, Pencil,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -172,6 +173,13 @@ const typeButtons = [
 
 export default function Home() {
   const { toast } = useToast();
+  const [, navigate] = useLocation();
+
+  const editId = useMemo(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get("edit") ?? null;
+  }, []);
+
   const [name, setName] = useState("Мой QR-код");
   const [type, setType] = useState<QrCodeType>("url");
   const [contentData, setContentData] = useState<ContentData>({
@@ -223,6 +231,20 @@ export default function Home() {
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const generatedRef = useRef(false);
+
+  useEffect(() => {
+    if (!editId) return;
+    const saved = loadQrCode(editId);
+    if (!saved) return;
+    setName(saved.name);
+    setType(saved.type as QrCodeType);
+    if (saved.fields) {
+      setContentData((d) => ({ ...d, ...(saved.fields as Partial<ContentData>) }));
+    }
+    const savedStyle = saved.style as ExtendedQrStyle;
+    setStyle(savedStyle);
+    setUseGradient(!!savedStyle.gradient);
+  }, [editId]);
 
   if (useGradient && !style.gradient) {
     setStyle((s) => ({
@@ -315,16 +337,31 @@ export default function Home() {
   const handleSave = () => {
     setIsSaving(true);
     try {
-      saveQrCode({
-        name,
-        type,
-        content: generatedContent,
-        style: style as Record<string, unknown>,
-        isDynamic: false,
-      });
+      const fields: Record<string, unknown> = { ...contentData };
+      if (editId) {
+        updateQrCode(editId, {
+          name,
+          type,
+          content: generatedContent,
+          style: style as Record<string, unknown>,
+          fields,
+        });
+        toast({ title: "✏️ Обновлено!", description: "QR-код сохранён в истории." });
+      } else {
+        saveQrCode({
+          name,
+          type,
+          content: generatedContent,
+          style: style as Record<string, unknown>,
+          fields,
+          isDynamic: false,
+        });
+        toast({ title: "💾 Сохранено!", description: "QR-код добавлен в вашу коллекцию." });
+      }
       setJustSaved(true);
-      setTimeout(() => setJustSaved(false), 3000);
-      toast({ title: "💾 Сохранено!", description: "QR-код добавлен в историю браузера." });
+      setTimeout(() => {
+        navigate("/history");
+      }, 800);
     } catch {
       toast({ title: "Ошибка сохранения", variant: "destructive" });
     } finally {
@@ -337,26 +374,51 @@ export default function Home() {
 
   return (
     <AppLayout>
-      <div className="mb-12 text-center space-y-4">
+      {editId ? (
         <motion.div
-          initial={{ opacity: 0, scale: 0.9 }}
-          animate={{ opacity: 1, scale: 1 }}
-          transition={{ duration: 0.5, delay: 0.1 }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-foreground/[0.05] border border-border text-sm font-medium text-foreground/80 mb-4"
-        >
-          <Sparkles className="w-4 h-4 text-primary" />
-          Премиум Генератор
-        </motion.div>
-        <motion.h1
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: -8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5, delay: 0.2 }}
-          className="text-4xl md:text-6xl font-black"
+          className="mb-8 flex items-center justify-between gap-4 px-6 py-4 rounded-2xl bg-primary/10 border border-primary/30"
         >
-          Создайте незабываемые <br className="hidden md:block" />
-          <span className="text-gradient">Связи</span>
-        </motion.h1>
-      </div>
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/20 flex items-center justify-center shrink-0">
+              <Pencil className="w-4 h-4 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-foreground">Режим редактирования</p>
+              <p className="text-sm text-muted-foreground">Измените QR-код и нажмите «Обновить»</p>
+            </div>
+          </div>
+          <Button
+            variant="ghost"
+            onClick={() => navigate("/history")}
+            className="text-sm rounded-xl hover:bg-foreground/10 shrink-0"
+          >
+            ← Назад к коллекции
+          </Button>
+        </motion.div>
+      ) : (
+        <div className="mb-12 text-center space-y-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+            className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-foreground/[0.05] border border-border text-sm font-medium text-foreground/80 mb-4"
+          >
+            <Sparkles className="w-4 h-4 text-primary" />
+            Премиум Генератор
+          </motion.div>
+          <motion.h1
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="text-4xl md:text-6xl font-black"
+          >
+            Создайте незабываемые <br className="hidden md:block" />
+            <span className="text-gradient">Связи</span>
+          </motion.h1>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 relative">
         {/* Левая колонка: настройки */}
@@ -787,13 +849,14 @@ export default function Home() {
                   >
                     {justSaved ? (
                       <>
-                        <CheckCircle2 className="w-5 h-5 mr-2" /> Сохранено!
+                        <CheckCircle2 className="w-5 h-5 mr-2" /> {editId ? "Обновлено!" : "Сохранено!"}
                       </>
                     ) : isSaving ? (
                       <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin" />
                     ) : (
                       <>
-                        <Save className="w-5 h-5 mr-2" /> Сохранить в историю
+                        {editId ? <Pencil className="w-5 h-5 mr-2" /> : <Save className="w-5 h-5 mr-2" />}
+                        {editId ? "Обновить QR-код" : "Сохранить в коллекцию"}
                       </>
                     )}
                   </Button>
