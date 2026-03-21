@@ -13,7 +13,11 @@ import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { exportQrCode } from "@/lib/export-qr";
 import { saveQrCode } from "@/lib/local-storage";
-import { Download, Link as LinkIcon, Type, Mail, Phone, Wifi, Image as ImageIcon, Save, Sparkles, CheckCircle2 } from "lucide-react";
+import {
+  Download, Link as LinkIcon, Type, Mail, Phone, Wifi,
+  Image as ImageIcon, Save, Sparkles, CheckCircle2,
+  MessageSquare, User, MapPin, CalendarDays, Send,
+} from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 const FRAMES: { id: FrameStyle; label: string; icon: React.ReactNode }[] = [
@@ -105,19 +109,66 @@ const FRAMES: { id: FrameStyle; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
-type QrCodeType = "url" | "text" | "email" | "phone" | "sms" | "wifi" | "vcard" | "event" | "payment";
+type QrCodeType =
+  | "url" | "text" | "email" | "phone" | "wifi"
+  | "sms" | "vcard" | "location" | "event" | "whatsapp" | "telegram";
 
 type ContentData = {
+  // URL
   url: string;
+  // Текст
   text: string;
+  // Email
   email: string;
   subject: string;
   body: string;
+  // Телефон
   phone: string;
+  // Wi-Fi
   ssid: string;
   password: string;
   encryption: string;
+  // SMS
+  smsPhone: string;
+  smsMessage: string;
+  // vCard
+  firstName: string;
+  lastName: string;
+  company: string;
+  jobTitle: string;
+  vcardPhone: string;
+  vcardEmail: string;
+  website: string;
+  // Геолокация
+  latitude: string;
+  longitude: string;
+  locationLabel: string;
+  // Событие
+  eventTitle: string;
+  eventStart: string;
+  eventEnd: string;
+  eventLocation: string;
+  eventDescription: string;
+  // WhatsApp
+  waPhone: string;
+  waMessage: string;
+  // Telegram
+  tgUsername: string;
 };
+
+const typeButtons = [
+  { id: "url",      icon: LinkIcon,      label: "Ссылка",     color: "from-blue-500 to-blue-600" },
+  { id: "text",     icon: Type,          label: "Текст",      color: "from-gray-500 to-gray-600" },
+  { id: "email",    icon: Mail,          label: "Email",      color: "from-orange-500 to-orange-600" },
+  { id: "phone",    icon: Phone,         label: "Телефон",    color: "from-green-500 to-green-600" },
+  { id: "wifi",     icon: Wifi,          label: "Wi-Fi",      color: "from-cyan-500 to-cyan-600" },
+  { id: "sms",      icon: MessageSquare, label: "SMS",        color: "from-yellow-500 to-yellow-600" },
+  { id: "vcard",    icon: User,          label: "Контакт",    color: "from-pink-500 to-pink-600" },
+  { id: "location", icon: MapPin,        label: "Геолокация", color: "from-red-500 to-red-600" },
+  { id: "event",    icon: CalendarDays,  label: "Событие",    color: "from-violet-500 to-violet-600" },
+  { id: "whatsapp", icon: MessageSquare, label: "WhatsApp",   color: "from-emerald-500 to-emerald-600" },
+  { id: "telegram", icon: Send,          label: "Telegram",   color: "from-sky-500 to-sky-600" },
+] as const;
 
 export default function Home() {
   const { toast } = useToast();
@@ -133,7 +184,29 @@ export default function Home() {
     ssid: "",
     password: "",
     encryption: "WPA",
+    smsPhone: "",
+    smsMessage: "",
+    firstName: "",
+    lastName: "",
+    company: "",
+    jobTitle: "",
+    vcardPhone: "",
+    vcardEmail: "",
+    website: "",
+    latitude: "55.7558",
+    longitude: "37.6176",
+    locationLabel: "",
+    eventTitle: "",
+    eventStart: "",
+    eventEnd: "",
+    eventLocation: "",
+    eventDescription: "",
+    waPhone: "",
+    waMessage: "",
+    tgUsername: "",
   });
+
+  const set = (fields: Partial<ContentData>) => setContentData((d) => ({ ...d, ...fields }));
 
   const [style, setStyle] = useState<ExtendedQrStyle>({
     fgColor: "#ffffff",
@@ -160,20 +233,60 @@ export default function Home() {
     setStyle((s) => ({ ...s, gradient: undefined }));
   }
 
+  const formatDate = (iso: string) => iso.replace(/[-:]/g, "").replace("T", "").slice(0, 15);
+
   const generatedContent = useMemo(() => {
+    const d = contentData;
     switch (type) {
       case "url":
-        return contentData.url;
+        return d.url || "https://qreate.app";
       case "text":
-        return contentData.text;
+        return d.text || " ";
       case "email":
-        return `mailto:${contentData.email}?subject=${encodeURIComponent(contentData.subject)}&body=${encodeURIComponent(contentData.body)}`;
+        return `mailto:${d.email}?subject=${encodeURIComponent(d.subject)}&body=${encodeURIComponent(d.body)}`;
       case "phone":
-        return `tel:${contentData.phone}`;
+        return `tel:${d.phone}`;
       case "wifi":
-        return `WIFI:T:${contentData.encryption};S:${contentData.ssid};P:${contentData.password};;`;
+        return `WIFI:T:${d.encryption};S:${d.ssid};P:${d.password};;`;
+      case "sms":
+        return `smsto:${d.smsPhone}:${d.smsMessage}`;
+      case "vcard":
+        return [
+          "BEGIN:VCARD",
+          "VERSION:3.0",
+          `N:${d.lastName};${d.firstName};;;`,
+          `FN:${[d.firstName, d.lastName].filter(Boolean).join(" ") || "Контакт"}`,
+          d.company && `ORG:${d.company}`,
+          d.jobTitle && `TITLE:${d.jobTitle}`,
+          d.vcardPhone && `TEL;TYPE=CELL:${d.vcardPhone}`,
+          d.vcardEmail && `EMAIL:${d.vcardEmail}`,
+          d.website && `URL:${d.website}`,
+          "END:VCARD",
+        ].filter(Boolean).join("\n");
+      case "location":
+        return `geo:${d.latitude},${d.longitude}${d.locationLabel ? `?q=${encodeURIComponent(d.locationLabel)}` : ""}`;
+      case "event": {
+        const start = d.eventStart ? formatDate(d.eventStart) : "20260101T120000";
+        const end = d.eventEnd ? formatDate(d.eventEnd) : "20260101T130000";
+        return [
+          "BEGIN:VCALENDAR",
+          "VERSION:2.0",
+          "BEGIN:VEVENT",
+          `DTSTART:${start}`,
+          `DTEND:${end}`,
+          `SUMMARY:${d.eventTitle || "Событие"}`,
+          d.eventLocation && `LOCATION:${d.eventLocation}`,
+          d.eventDescription && `DESCRIPTION:${d.eventDescription}`,
+          "END:VEVENT",
+          "END:VCALENDAR",
+        ].filter(Boolean).join("\n");
+      }
+      case "whatsapp":
+        return `https://wa.me/${d.waPhone.replace(/\D/g, "")}${d.waMessage ? `?text=${encodeURIComponent(d.waMessage)}` : ""}`;
+      case "telegram":
+        return `https://t.me/${d.tgUsername.replace(/^@/, "")}`;
       default:
-        return contentData.url;
+        return d.url || "https://qreate.app";
     }
   }, [type, contentData]);
 
@@ -219,13 +332,8 @@ export default function Home() {
     }
   };
 
-  const typeButtons = [
-    { id: "url", icon: LinkIcon, label: "Ссылка" },
-    { id: "text", icon: Type, label: "Текст" },
-    { id: "email", icon: Mail, label: "Email" },
-    { id: "phone", icon: Phone, label: "Телефон" },
-    { id: "wifi", icon: Wifi, label: "Wi-Fi" },
-  ] as const;
+  const inputCls = "bg-black/40 border-white/10 h-12 rounded-xl";
+  const textareaCls = "bg-black/40 border-white/10 rounded-xl resize-none";
 
   return (
     <AppLayout>
@@ -279,136 +387,242 @@ export default function Home() {
                 </TabsTrigger>
               </TabsList>
 
+              {/* ── КОНТЕНТ ── */}
               <TabsContent value="content" className="space-y-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-                  {typeButtons.map((t) => (
-                    <button
-                      key={t.id}
-                      onClick={() => setType(t.id as QrCodeType)}
-                      className={`flex flex-col items-center justify-center gap-2 p-4 rounded-2xl border transition-all duration-200 ${
-                        type === t.id
-                          ? "bg-primary/20 border-primary text-white shadow-lg shadow-primary/20"
-                          : "bg-black/20 border-white/5 text-muted-foreground hover:bg-white/5 hover:text-white"
-                      }`}
-                    >
-                      <t.icon className="w-6 h-6" />
-                      <span className="text-xs font-medium">{t.label}</span>
-                    </button>
-                  ))}
+                <div className="grid grid-cols-3 sm:grid-cols-4 gap-2.5">
+                  {typeButtons.map((t) => {
+                    const isActive = type === t.id;
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => setType(t.id)}
+                        className={`flex flex-col items-center justify-center gap-2 py-3.5 px-2 rounded-2xl border transition-all duration-200 ${
+                          isActive
+                            ? "bg-primary/20 border-primary text-white shadow-lg shadow-primary/20"
+                            : "bg-black/20 border-white/5 text-muted-foreground hover:bg-white/5 hover:text-white"
+                        }`}
+                      >
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isActive ? `bg-gradient-to-br ${t.color}` : "bg-white/5"}`}>
+                          <t.icon className="w-4 h-4 text-white" />
+                        </div>
+                        <span className="text-[11px] font-medium leading-none">{t.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
 
-                <div className="bg-black/20 p-6 rounded-2xl border border-white/5 mt-6 space-y-4">
-                  {type === "url" && (
-                    <div className="space-y-2">
-                      <Label>URL сайта</Label>
-                      <Input
-                        placeholder="https://example.com"
-                        value={contentData.url}
-                        onChange={(e) => setContentData({ ...contentData, url: e.target.value })}
-                        className="bg-black/40 border-white/10 h-12 rounded-xl"
-                      />
-                    </div>
-                  )}
-
-                  {type === "text" && (
-                    <div className="space-y-2">
-                      <Label>Текст</Label>
-                      <Textarea
-                        placeholder="Введите ваш текст здесь..."
-                        value={contentData.text}
-                        onChange={(e) => setContentData({ ...contentData, text: e.target.value })}
-                        className="bg-black/40 border-white/10 min-h-[120px] rounded-xl resize-none"
-                      />
-                    </div>
-                  )}
-
-                  {type === "email" && (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Email адрес</Label>
-                        <Input
-                          type="email"
-                          placeholder="hello@example.com"
-                          value={contentData.email}
-                          onChange={(e) => setContentData({ ...contentData, email: e.target.value })}
-                          className="bg-black/40 border-white/10 h-12 rounded-xl"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Тема</Label>
-                        <Input
-                          placeholder="Запрос"
-                          value={contentData.subject}
-                          onChange={(e) => setContentData({ ...contentData, subject: e.target.value })}
-                          className="bg-black/40 border-white/10 h-12 rounded-xl"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label>Текст письма</Label>
-                        <Textarea
-                          placeholder="Привет..."
-                          value={contentData.body}
-                          onChange={(e) => setContentData({ ...contentData, body: e.target.value })}
-                          className="bg-black/40 border-white/10 rounded-xl"
-                        />
-                      </div>
-                    </div>
-                  )}
-
-                  {type === "phone" && (
-                    <div className="space-y-2">
-                      <Label>Номер телефона</Label>
-                      <Input
-                        type="tel"
-                        placeholder="+7 900 000 00 00"
-                        value={contentData.phone}
-                        onChange={(e) => setContentData({ ...contentData, phone: e.target.value })}
-                        className="bg-black/40 border-white/10 h-12 rounded-xl"
-                      />
-                    </div>
-                  )}
-
-                  {type === "wifi" && (
-                    <div className="space-y-4">
-                      <div className="space-y-2">
-                        <Label>Имя сети (SSID)</Label>
-                        <Input
-                          placeholder="Гостевая сеть"
-                          value={contentData.ssid}
-                          onChange={(e) => setContentData({ ...contentData, ssid: e.target.value })}
-                          className="bg-black/40 border-white/10 h-12 rounded-xl"
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
+                <div className="bg-black/20 p-6 rounded-2xl border border-white/5 space-y-4">
+                  <AnimatePresence mode="wait">
+                    <motion.div
+                      key={type}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.2 }}
+                      className="space-y-4"
+                    >
+                      {type === "url" && (
                         <div className="space-y-2">
-                          <Label>Пароль</Label>
-                          <Input
-                            type="password"
-                            placeholder="••••••••"
-                            value={contentData.password}
-                            onChange={(e) => setContentData({ ...contentData, password: e.target.value })}
-                            className="bg-black/40 border-white/10 h-12 rounded-xl"
-                          />
+                          <Label>URL сайта</Label>
+                          <Input placeholder="https://example.com" value={contentData.url} onChange={(e) => set({ url: e.target.value })} className={inputCls} />
                         </div>
+                      )}
+
+                      {type === "text" && (
                         <div className="space-y-2">
-                          <Label>Шифрование</Label>
-                          <Select value={contentData.encryption} onValueChange={(v) => setContentData({ ...contentData, encryption: v })}>
-                            <SelectTrigger className="bg-black/40 border-white/10 h-12 rounded-xl">
-                              <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent className="glass-card border-white/10">
-                              <SelectItem value="WPA">WPA/WPA2</SelectItem>
-                              <SelectItem value="WEP">WEP</SelectItem>
-                              <SelectItem value="nopass">Без пароля</SelectItem>
-                            </SelectContent>
-                          </Select>
+                          <Label>Текст</Label>
+                          <Textarea placeholder="Введите ваш текст здесь..." value={contentData.text} onChange={(e) => set({ text: e.target.value })} className={`${textareaCls} min-h-[120px]`} />
                         </div>
-                      </div>
-                    </div>
-                  )}
+                      )}
+
+                      {type === "email" && (
+                        <>
+                          <div className="space-y-2">
+                            <Label>Email адрес</Label>
+                            <Input type="email" placeholder="hello@example.com" value={contentData.email} onChange={(e) => set({ email: e.target.value })} className={inputCls} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Тема письма</Label>
+                            <Input placeholder="Запрос" value={contentData.subject} onChange={(e) => set({ subject: e.target.value })} className={inputCls} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Текст письма</Label>
+                            <Textarea placeholder="Привет..." value={contentData.body} onChange={(e) => set({ body: e.target.value })} className={textareaCls} />
+                          </div>
+                        </>
+                      )}
+
+                      {type === "phone" && (
+                        <div className="space-y-2">
+                          <Label>Номер телефона</Label>
+                          <Input type="tel" placeholder="+7 900 000 00 00" value={contentData.phone} onChange={(e) => set({ phone: e.target.value })} className={inputCls} />
+                        </div>
+                      )}
+
+                      {type === "wifi" && (
+                        <>
+                          <div className="space-y-2">
+                            <Label>Имя сети (SSID)</Label>
+                            <Input placeholder="Гостевая сеть" value={contentData.ssid} onChange={(e) => set({ ssid: e.target.value })} className={inputCls} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Пароль</Label>
+                              <Input type="password" placeholder="••••••••" value={contentData.password} onChange={(e) => set({ password: e.target.value })} className={inputCls} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Шифрование</Label>
+                              <Select value={contentData.encryption} onValueChange={(v) => set({ encryption: v })}>
+                                <SelectTrigger className={inputCls}><SelectValue /></SelectTrigger>
+                                <SelectContent className="glass-card border-white/10">
+                                  <SelectItem value="WPA">WPA/WPA2</SelectItem>
+                                  <SelectItem value="WEP">WEP</SelectItem>
+                                  <SelectItem value="nopass">Без пароля</SelectItem>
+                                </SelectContent>
+                              </Select>
+                            </div>
+                          </div>
+                        </>
+                      )}
+
+                      {type === "sms" && (
+                        <>
+                          <div className="space-y-2">
+                            <Label>Номер телефона</Label>
+                            <Input type="tel" placeholder="+7 900 000 00 00" value={contentData.smsPhone} onChange={(e) => set({ smsPhone: e.target.value })} className={inputCls} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Текст сообщения (необязательно)</Label>
+                            <Textarea placeholder="Привет! Хочу узнать..." value={contentData.smsMessage} onChange={(e) => set({ smsMessage: e.target.value })} className={`${textareaCls} min-h-[100px]`} />
+                          </div>
+                        </>
+                      )}
+
+                      {type === "vcard" && (
+                        <>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Имя</Label>
+                              <Input placeholder="Иван" value={contentData.firstName} onChange={(e) => set({ firstName: e.target.value })} className={inputCls} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Фамилия</Label>
+                              <Input placeholder="Иванов" value={contentData.lastName} onChange={(e) => set({ lastName: e.target.value })} className={inputCls} />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Компания</Label>
+                              <Input placeholder="ООО Компания" value={contentData.company} onChange={(e) => set({ company: e.target.value })} className={inputCls} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Должность</Label>
+                              <Input placeholder="Директор" value={contentData.jobTitle} onChange={(e) => set({ jobTitle: e.target.value })} className={inputCls} />
+                            </div>
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Телефон</Label>
+                              <Input type="tel" placeholder="+7 900 000 00 00" value={contentData.vcardPhone} onChange={(e) => set({ vcardPhone: e.target.value })} className={inputCls} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Email</Label>
+                              <Input type="email" placeholder="ivan@example.com" value={contentData.vcardEmail} onChange={(e) => set({ vcardEmail: e.target.value })} className={inputCls} />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Сайт</Label>
+                            <Input placeholder="https://example.com" value={contentData.website} onChange={(e) => set({ website: e.target.value })} className={inputCls} />
+                          </div>
+                        </>
+                      )}
+
+                      {type === "location" && (
+                        <>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Широта</Label>
+                              <Input placeholder="55.7558" value={contentData.latitude} onChange={(e) => set({ latitude: e.target.value })} className={inputCls} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Долгота</Label>
+                              <Input placeholder="37.6176" value={contentData.longitude} onChange={(e) => set({ longitude: e.target.value })} className={inputCls} />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Название места (необязательно)</Label>
+                            <Input placeholder="Красная площадь, Москва" value={contentData.locationLabel} onChange={(e) => set({ locationLabel: e.target.value })} className={inputCls} />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Совет: Найдите координаты в Google Maps — нажмите на место правой кнопкой.
+                          </p>
+                        </>
+                      )}
+
+                      {type === "event" && (
+                        <>
+                          <div className="space-y-2">
+                            <Label>Название события</Label>
+                            <Input placeholder="Конференция по маркетингу" value={contentData.eventTitle} onChange={(e) => set({ eventTitle: e.target.value })} className={inputCls} />
+                          </div>
+                          <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label>Начало</Label>
+                              <Input type="datetime-local" value={contentData.eventStart} onChange={(e) => set({ eventStart: e.target.value })} className={inputCls} />
+                            </div>
+                            <div className="space-y-2">
+                              <Label>Конец</Label>
+                              <Input type="datetime-local" value={contentData.eventEnd} onChange={(e) => set({ eventEnd: e.target.value })} className={inputCls} />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Место проведения</Label>
+                            <Input placeholder="Москва, Центр международной торговли" value={contentData.eventLocation} onChange={(e) => set({ eventLocation: e.target.value })} className={inputCls} />
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Описание (необязательно)</Label>
+                            <Textarea placeholder="Краткое описание события..." value={contentData.eventDescription} onChange={(e) => set({ eventDescription: e.target.value })} className={`${textareaCls} min-h-[80px]`} />
+                          </div>
+                        </>
+                      )}
+
+                      {type === "whatsapp" && (
+                        <>
+                          <div className="space-y-2">
+                            <Label>Номер WhatsApp</Label>
+                            <Input type="tel" placeholder="+7 900 000 00 00" value={contentData.waPhone} onChange={(e) => set({ waPhone: e.target.value })} className={inputCls} />
+                            <p className="text-xs text-muted-foreground">Укажите номер с кодом страны, без пробелов и скобок.</p>
+                          </div>
+                          <div className="space-y-2">
+                            <Label>Заранее заполненное сообщение (необязательно)</Label>
+                            <Textarea placeholder="Здравствуйте! Хотел узнать о ваших услугах..." value={contentData.waMessage} onChange={(e) => set({ waMessage: e.target.value })} className={`${textareaCls} min-h-[100px]`} />
+                          </div>
+                        </>
+                      )}
+
+                      {type === "telegram" && (
+                        <div className="space-y-2">
+                          <Label>Telegram-юзернейм</Label>
+                          <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">@</span>
+                            <Input
+                              placeholder="username"
+                              value={contentData.tgUsername.replace(/^@/, "")}
+                              onChange={(e) => set({ tgUsername: e.target.value.replace(/^@/, "") })}
+                              className={`${inputCls} pl-9`}
+                            />
+                          </div>
+                          <p className="text-xs text-muted-foreground">
+                            Введите юзернейм канала, бота или человека. QR откроет чат в Telegram.
+                          </p>
+                        </div>
+                      )}
+                    </motion.div>
+                  </AnimatePresence>
                 </div>
               </TabsContent>
 
+              {/* ── ЦВЕТА ── */}
               <TabsContent value="colors" className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
                 <div className="flex items-center justify-between p-4 bg-black/20 rounded-2xl border border-white/5">
                   <div className="space-y-0.5">
@@ -456,8 +670,8 @@ export default function Home() {
                 </div>
               </TabsContent>
 
+              {/* ── ДИЗАЙН ── */}
               <TabsContent value="design" className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                {/* Frame Picker */}
                 <div className="space-y-4">
                   <Label>Стиль рамки</Label>
                   <div className="grid grid-cols-4 gap-3">
@@ -480,7 +694,7 @@ export default function Home() {
                     })}
                   </div>
 
-                  {(style.frameStyle && style.frameStyle !== "none") && (
+                  {style.frameStyle && style.frameStyle !== "none" && (
                     <div className="space-y-3 pt-2">
                       <Label>Цвет рамки</Label>
                       <ColorPickerPopover
