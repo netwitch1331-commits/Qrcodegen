@@ -63,7 +63,7 @@ export default function History() {
     <AppLayout>
       <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6">
         <div>
-          <h1 className="text-3xl md:text-5xl font-black text-white mb-2 font-display">Мои QR-коды</h1>
+          <h1 className="text-3xl md:text-5xl font-black mb-2 font-display">Мои QR-коды</h1>
           <p className="text-muted-foreground text-lg">
             {filtered.length > 0
               ? `Сохранено в браузере: ${codes.length} шт.`
@@ -78,17 +78,17 @@ export default function History() {
               placeholder="Поиск..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="pl-10 h-12 bg-black/40 border-white/10 rounded-xl w-full focus-visible:ring-primary"
+              className="pl-10 h-12 bg-foreground/[0.05] border-border rounded-xl w-full focus-visible:ring-primary"
             />
           </div>
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-12 px-4 bg-black/40 border-white/10 rounded-xl hover:bg-white/10 hover:text-white whitespace-nowrap">
+              <Button variant="outline" className="h-12 px-4 bg-foreground/[0.05] border-border rounded-xl hover:bg-foreground/10 hover:text-foreground whitespace-nowrap">
                 <ArrowUpDown className="w-4 h-4 mr-2" />
                 {sortLabel[sort]}
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="glass-card border-white/10">
+            <DropdownMenuContent align="end" className="glass-card border-border">
               <DropdownMenuItem onClick={() => setSort("createdAt")}>По дате</DropdownMenuItem>
               <DropdownMenuItem onClick={() => setSort("name")}>По названию (А-Я)</DropdownMenuItem>
             </DropdownMenuContent>
@@ -102,10 +102,10 @@ export default function History() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="col-span-full py-20 text-center glass-card rounded-[2rem] border-dashed border-2 border-white/10"
+              className="col-span-full py-20 text-center glass-card rounded-[2rem] border-dashed border-2 border-border"
             >
               <LinkIcon className="w-12 h-12 mx-auto text-muted-foreground mb-4 opacity-50" />
-              <h3 className="text-xl font-bold text-white mb-2">
+              <h3 className="text-xl font-bold mb-2">
                 {search ? "Ничего не найдено" : "Пока нет QR-кодов"}
               </h3>
               <p className="text-muted-foreground">
@@ -122,15 +122,15 @@ export default function History() {
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.9 }}
-                className="glass-card rounded-[2rem] p-4 group hover:bg-white/5 transition-all duration-300 border border-white/10"
+                className="glass-card rounded-[2rem] p-4 group hover:bg-foreground/[0.03] transition-all duration-300 border border-border"
               >
                 <div className="relative mb-6">
                   <div className="pointer-events-none">
                     <QrPreview content={qr.content} styleConfig={qr.style as QrCodeStyle} />
                   </div>
 
-                  <div className="absolute inset-0 bg-black/60 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-[2rem] flex flex-col items-center justify-center gap-3">
-                    <Button onClick={() => handleDownload(qr)} className="rounded-full bg-white text-black hover:bg-gray-200">
+                  <div className="absolute inset-0 bg-foreground/50 backdrop-blur-sm opacity-0 group-hover:opacity-100 transition-opacity duration-300 rounded-[2rem] flex flex-col items-center justify-center gap-3">
+                    <Button onClick={() => handleDownload(qr)} className="rounded-full bg-background text-foreground hover:bg-background/80">
                       <Download className="w-4 h-4 mr-2" /> Скачать
                     </Button>
                   </div>
@@ -138,14 +138,14 @@ export default function History() {
 
                 <div className="px-2 pb-2">
                   <div className="flex items-start justify-between gap-4 mb-2">
-                    <h3 className="text-lg font-bold text-white truncate flex-1">{qr.name}</h3>
+                    <h3 className="text-lg font-bold truncate flex-1">{qr.name}</h3>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-white/10 -mr-2">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 rounded-full hover:bg-foreground/10 -mr-2">
                           <MoreVertical className="w-4 h-4" />
                         </Button>
                       </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end" className="glass-card border-white/10">
+                      <DropdownMenuContent align="end" className="glass-card border-border">
                         <DropdownMenuItem onClick={() => handleDownload(qr)}>
                           <Download className="w-4 h-4 mr-2" /> Скачать PNG
                         </DropdownMenuItem>
@@ -160,7 +160,7 @@ export default function History() {
                   </div>
 
                   <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
-                    <span className="flex items-center gap-1.5 bg-white/5 px-2.5 py-1 rounded-md capitalize">
+                    <span className="flex items-center gap-1.5 bg-foreground/[0.06] px-2.5 py-1 rounded-md capitalize">
                       {qr.type}
                     </span>
                     <span className="flex items-center gap-1.5">

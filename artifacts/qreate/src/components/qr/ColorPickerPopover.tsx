@@ -15,20 +15,20 @@ export function ColorPickerPopover({ color, onChange, label = "Select Color" }: 
       <PopoverTrigger asChild>
         <Button 
           variant="outline" 
-          className="w-full justify-start text-left font-normal bg-black/20 border-white/10 hover:bg-black/40 hover:text-white h-12 rounded-xl"
+          className="w-full justify-start text-left font-normal bg-foreground/[0.05] border-border hover:bg-foreground/10 hover:text-foreground h-12 rounded-xl"
         >
           <div 
-            className="w-6 h-6 rounded-md mr-3 border border-white/20 shadow-inner" 
+            className="w-6 h-6 rounded-md mr-3 border border-border shadow-inner" 
             style={{ backgroundColor: color }}
           />
           <span className="flex-1 truncate">{label}</span>
           <Paintbrush className="w-4 h-4 opacity-50" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-3 glass-card rounded-2xl border-white/10" align="start">
+      <PopoverContent className="w-auto p-3 glass-card rounded-2xl border-border" align="start">
         <HexColorPicker color={color} onChange={onChange} />
         <div className="mt-3 flex items-center gap-2">
-          <div className="text-xs font-mono text-muted-foreground bg-black/30 px-2 py-1 rounded flex-1 text-center">
+          <div className="text-xs font-mono text-muted-foreground bg-foreground/[0.08] px-2 py-1 rounded flex-1 text-center">
             {color.toUpperCase()}
           </div>
         </div>

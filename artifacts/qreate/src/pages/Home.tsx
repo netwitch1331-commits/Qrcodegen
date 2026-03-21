@@ -332,8 +332,8 @@ export default function Home() {
     }
   };
 
-  const inputCls = "bg-black/40 border-white/10 h-12 rounded-xl";
-  const textareaCls = "bg-black/40 border-white/10 rounded-xl resize-none";
+  const inputCls = "bg-foreground/[0.05] border-border h-12 rounded-xl focus-visible:ring-primary";
+  const textareaCls = "bg-foreground/[0.05] border-border rounded-xl resize-none focus-visible:ring-primary";
 
   return (
     <AppLayout>
@@ -342,7 +342,7 @@ export default function Home() {
           initial={{ opacity: 0, scale: 0.9 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, delay: 0.1 }}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-white/5 border border-white/10 text-sm font-medium text-white/80 mb-4"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-foreground/[0.05] border border-border text-sm font-medium text-foreground/80 mb-4"
         >
           <Sparkles className="w-4 h-4 text-primary" />
           Премиум Генератор
@@ -351,7 +351,7 @@ export default function Home() {
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
-          className="text-4xl md:text-6xl font-black text-white"
+          className="text-4xl md:text-6xl font-black"
         >
           Создайте незабываемые <br className="hidden md:block" />
           <span className="text-gradient">Связи</span>
@@ -369,20 +369,20 @@ export default function Home() {
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                className="text-2xl font-display font-bold h-14 bg-transparent border-0 border-b-2 border-white/10 rounded-none px-0 focus-visible:ring-0 focus-visible:border-primary placeholder:text-white/20"
+                className="text-2xl font-display font-bold h-14 bg-transparent border-0 border-b-2 border-border rounded-none px-0 focus-visible:ring-0 focus-visible:border-primary placeholder:text-foreground/20"
                 placeholder="например, Меню ресторана"
               />
             </div>
 
             <Tabs defaultValue="content" className="w-full">
-              <TabsList className="w-full h-14 bg-black/40 border border-white/5 p-1 mb-8 rounded-2xl grid grid-cols-3">
-                <TabsTrigger value="content" className="rounded-xl data-[state=active]:bg-white/10 data-[state=active]:text-white transition-all">
+              <TabsList className="w-full h-14 bg-foreground/[0.05] border border-border p-1 mb-8 rounded-2xl grid grid-cols-3">
+                <TabsTrigger value="content" className="rounded-xl data-[state=active]:bg-foreground/10 data-[state=active]:text-foreground transition-all">
                   Контент
                 </TabsTrigger>
-                <TabsTrigger value="colors" className="rounded-xl data-[state=active]:bg-white/10 data-[state=active]:text-white transition-all">
+                <TabsTrigger value="colors" className="rounded-xl data-[state=active]:bg-foreground/10 data-[state=active]:text-foreground transition-all">
                   Цвета
                 </TabsTrigger>
-                <TabsTrigger value="design" className="rounded-xl data-[state=active]:bg-white/10 data-[state=active]:text-white transition-all">
+                <TabsTrigger value="design" className="rounded-xl data-[state=active]:bg-foreground/10 data-[state=active]:text-foreground transition-all">
                   Дизайн
                 </TabsTrigger>
               </TabsList>
@@ -398,11 +398,11 @@ export default function Home() {
                         onClick={() => setType(t.id)}
                         className={`flex flex-col items-center justify-center gap-2 py-3.5 px-2 rounded-2xl border transition-all duration-200 ${
                           isActive
-                            ? "bg-primary/20 border-primary text-white shadow-lg shadow-primary/20"
-                            : "bg-black/20 border-white/5 text-muted-foreground hover:bg-white/5 hover:text-white"
+                            ? "bg-primary/20 border-primary text-foreground shadow-lg shadow-primary/20"
+                            : "bg-foreground/[0.04] border-border text-muted-foreground hover:bg-foreground/[0.07] hover:text-foreground"
                         }`}
                       >
-                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isActive ? `bg-gradient-to-br ${t.color}` : "bg-white/5"}`}>
+                        <div className={`w-8 h-8 rounded-xl flex items-center justify-center ${isActive ? `bg-gradient-to-br ${t.color}` : "bg-foreground/[0.07]"}`}>
                           <t.icon className="w-4 h-4 text-white" />
                         </div>
                         <span className="text-[11px] font-medium leading-none">{t.label}</span>
@@ -411,7 +411,7 @@ export default function Home() {
                   })}
                 </div>
 
-                <div className="bg-black/20 p-6 rounded-2xl border border-white/5 space-y-4">
+                <div className="bg-foreground/[0.03] p-6 rounded-2xl border border-border space-y-4">
                   <AnimatePresence mode="wait">
                     <motion.div
                       key={type}
@@ -474,7 +474,7 @@ export default function Home() {
                               <Label>Шифрование</Label>
                               <Select value={contentData.encryption} onValueChange={(v) => set({ encryption: v })}>
                                 <SelectTrigger className={inputCls}><SelectValue /></SelectTrigger>
-                                <SelectContent className="glass-card border-white/10">
+                                <SelectContent className="glass-card border-border">
                                   <SelectItem value="WPA">WPA/WPA2</SelectItem>
                                   <SelectItem value="WEP">WEP</SelectItem>
                                   <SelectItem value="nopass">Без пароля</SelectItem>
@@ -624,9 +624,9 @@ export default function Home() {
 
               {/* ── ЦВЕТА ── */}
               <TabsContent value="colors" className="space-y-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
-                <div className="flex items-center justify-between p-4 bg-black/20 rounded-2xl border border-white/5">
+                <div className="flex items-center justify-between p-4 bg-foreground/[0.03] rounded-2xl border border-border">
                   <div className="space-y-0.5">
-                    <Label className="text-base text-white">Включить градиент</Label>
+                    <Label className="text-base">Включить градиент</Label>
                     <p className="text-sm text-muted-foreground">Применить красивый градиент к QR-коду.</p>
                   </div>
                   <Switch checked={useGradient} onCheckedChange={setUseGradient} />
@@ -661,7 +661,7 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="space-y-3 pt-4 border-t border-white/5">
+                <div className="space-y-3 pt-4 border-t border-border">
                   <Label>Цвет фона</Label>
                   <ColorPickerPopover
                     color={style.bgColor || "#121217"}
@@ -683,8 +683,8 @@ export default function Home() {
                           onClick={() => setStyle((s) => ({ ...s, frameStyle: f.id }))}
                           className={`flex flex-col items-center gap-2 py-3 px-2 rounded-2xl border transition-all duration-200 ${
                             isActive
-                              ? "bg-primary/20 border-primary text-white shadow-lg shadow-primary/20"
-                              : "bg-black/20 border-white/5 text-muted-foreground hover:bg-white/5 hover:text-white"
+                              ? "bg-primary/20 border-primary text-foreground shadow-lg shadow-primary/20"
+                              : "bg-foreground/[0.04] border-border text-muted-foreground hover:bg-foreground/[0.07] hover:text-foreground"
                           }`}
                         >
                           {f.icon}
@@ -705,7 +705,7 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="space-y-4 pt-4 border-t border-white/5">
+                <div className="space-y-4 pt-4 border-t border-border">
                   <Label>URL логотипа (необязательно)</Label>
                   <div className="flex gap-3">
                     <div className="flex-1 relative">
@@ -714,12 +714,12 @@ export default function Home() {
                         placeholder="https://example.com/logo.png"
                         value={style.logoUrl || ""}
                         onChange={(e) => setStyle((s) => ({ ...s, logoUrl: e.target.value }))}
-                        className="bg-black/40 border-white/10 h-12 pl-11 rounded-xl"
+                        className="bg-foreground/[0.05] border-border h-12 pl-11 rounded-xl"
                       />
                     </div>
                   </div>
                   {style.logoUrl && (
-                    <div className="space-y-4 p-4 bg-black/20 rounded-2xl border border-white/5 mt-4">
+                    <div className="space-y-4 p-4 bg-foreground/[0.04] rounded-2xl border border-border mt-4">
                       <div className="flex justify-between">
                         <Label>Размер логотипа</Label>
                         <span className="text-xs text-muted-foreground">{Math.round((style.logoSize || 0.2) * 100)}%</span>
@@ -736,7 +736,7 @@ export default function Home() {
                   )}
                 </div>
 
-                <div className="space-y-4 pt-4 border-t border-white/5">
+                <div className="space-y-4 pt-4 border-t border-border">
                   <Label>Уровень коррекции ошибок</Label>
                   <p className="text-sm text-muted-foreground mb-4">
                     Более высокий уровень позволяет читать QR-код даже при частичном перекрытии (например, логотипом).
@@ -748,8 +748,8 @@ export default function Home() {
                         onClick={() => setStyle((s) => ({ ...s, errorCorrectionLevel: level }))}
                         className={`py-3 rounded-xl border font-medium transition-all ${
                           style.errorCorrectionLevel === level
-                            ? "bg-primary/20 border-primary text-white"
-                            : "bg-black/20 border-white/5 text-muted-foreground hover:bg-white/10"
+                            ? "bg-primary/20 border-primary text-foreground"
+                            : "bg-foreground/[0.04] border-border text-muted-foreground hover:bg-foreground/[0.07]"
                         }`}
                       >
                         {level}
@@ -779,7 +779,7 @@ export default function Home() {
                   <Button
                     onClick={handleSave}
                     disabled={isSaving}
-                    className={`w-full h-14 rounded-xl font-bold text-lg shadow-lg border-0 text-white transition-all active:scale-[0.98] ${
+                    className={`w-full h-14 rounded-xl font-bold text-lg shadow-lg border-0 transition-all active:scale-[0.98] text-white ${
                       justSaved
                         ? "bg-green-600 hover:bg-green-700 shadow-green-600/25"
                         : "bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-primary/25"
@@ -804,14 +804,14 @@ export default function Home() {
                 <Button
                   onClick={() => handleExport("png")}
                   variant="outline"
-                  className="h-12 rounded-xl bg-black/40 border-white/10 hover:bg-white/10 hover:text-white"
+                  className="h-12 rounded-xl bg-foreground/[0.05] border-border hover:bg-foreground/10 hover:text-foreground"
                 >
                   <Download className="w-4 h-4 mr-2" /> PNG
                 </Button>
                 <Button
                   onClick={() => handleExport("svg")}
                   variant="outline"
-                  className="h-12 rounded-xl bg-black/40 border-white/10 hover:bg-white/10 hover:text-white"
+                  className="h-12 rounded-xl bg-foreground/[0.05] border-border hover:bg-foreground/10 hover:text-foreground"
                 >
                   <Download className="w-4 h-4 mr-2" /> SVG
                 </Button>
