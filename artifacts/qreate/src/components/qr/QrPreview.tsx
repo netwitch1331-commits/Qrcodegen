@@ -8,6 +8,8 @@ export type FrameStyle = "none" | "simple" | "rounded" | "double" | "corners" | 
 export type ExtendedQrStyle = QrCodeStyle & {
   frameStyle?: FrameStyle;
   frameColor?: string;
+  caption?: string;
+  captionColor?: string;
 };
 
 interface QrPreviewProps {
@@ -177,13 +179,17 @@ export function QrPreview({ content, styleConfig, onGenerated }: QrPreviewProps)
         const frameStyle: FrameStyle = (styleConfig as ExtendedQrStyle).frameStyle || "none";
         const bgColor = styleConfig.bgColor || "#121217";
         const frameColor = (styleConfig as ExtendedQrStyle).frameColor || getFgColor(styleConfig);
+        const caption = (styleConfig as ExtendedQrStyle).caption?.trim() || "";
+        const captionColor = (styleConfig as ExtendedQrStyle).captionColor || getFgColor(styleConfig);
 
-        // Canvas dimensions: leave room for frame
+        // Canvas dimensions
         const canvasSize = 960;
         const padding = frameStyle === "none" ? 0 : 130;
         const labelExtra = frameStyle === "scan" ? 140 : 0;
         const qrSize = canvasSize - padding * 2;
-        const canvasH = canvasSize + labelExtra;
+        const captionFontSize = Math.round(canvasSize * 0.055);
+        const captionExtra = caption ? captionFontSize * 2.4 : 0;
+        const canvasH = canvasSize + labelExtra + captionExtra;
         const qrX = padding;
         const qrY = padding;
 
@@ -197,7 +203,7 @@ export function QrPreview({ content, styleConfig, onGenerated }: QrPreviewProps)
         ctx.fillStyle = bgColor;
         ctx.fillRect(0, 0, canvasSize, canvasH);
 
-        // Generate QR at qrSize
+        // Generate QR
         const qrDataUrl = await QRCode.toDataURL(content || "https://qreate.app", {
           margin: 2,
           width: qrSize,
@@ -216,7 +222,7 @@ export function QrPreview({ content, styleConfig, onGenerated }: QrPreviewProps)
 
         if (!isMounted) return;
 
-        // Draw QR into a temp canvas to apply coloring via compositing
+        // Colorise QR via temp canvas
         const tmp = document.createElement("canvas");
         tmp.width = qrSize;
         tmp.height = qrSize;
@@ -251,7 +257,7 @@ export function QrPreview({ content, styleConfig, onGenerated }: QrPreviewProps)
         }
         tc.fillRect(0, 0, qrSize, qrSize);
 
-        // Draw colored QR onto main canvas
+        // Draw colored QR
         ctx.drawImage(tmp, qrX, qrY, qrSize, qrSize);
 
         // Logo overlay
@@ -282,9 +288,21 @@ export function QrPreview({ content, styleConfig, onGenerated }: QrPreviewProps)
           }
         }
 
-        // Draw frame on top
+        // Frame
         if (frameStyle !== "none") {
           drawFrame(ctx, canvasSize, canvasH, qrX, qrY, qrSize, frameStyle, frameColor, bgColor, styleConfig);
+        }
+
+        // Caption text below QR
+        if (caption) {
+          const textY = canvasSize + labelExtra + captionExtra / 2;
+          ctx.save();
+          ctx.font = `bold ${captionFontSize}px 'Outfit', 'DM Sans', 'Inter', sans-serif`;
+          ctx.textAlign = "center";
+          ctx.textBaseline = "middle";
+          ctx.fillStyle = captionColor;
+          ctx.fillText(caption, canvasSize / 2, textY);
+          ctx.restore();
         }
 
         if (isMounted) {

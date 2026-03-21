@@ -18,6 +18,7 @@ import {
   Download, Link as LinkIcon, Type, Mail, Phone, Wifi,
   Image as ImageIcon, Save, Sparkles, CheckCircle2,
   MessageSquare, User, MapPin, CalendarDays, Send, Pencil,
+  Upload, X,
 } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
@@ -225,12 +226,16 @@ export default function Home() {
     gradient: { type: "linear", colorStart: "#8b5cf6", colorEnd: "#d946ef", rotation: 45 },
     frameStyle: "none",
     frameColor: "",
+    caption: "",
+    captionColor: "",
   });
 
   const [useGradient, setUseGradient] = useState(true);
+  const [logoTab, setLogoTab] = useState<"upload" | "url">("upload");
   const [isSaving, setIsSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const generatedRef = useRef(false);
+  const logoFileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!editId) return;
@@ -332,6 +337,26 @@ export default function Home() {
     } catch {
       toast({ title: "Ошибка экспорта", description: "Попробуйте ещё раз.", variant: "destructive" });
     }
+  };
+
+  const handleLogoFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast({ title: "Неверный формат", description: "Пожалуйста, выберите изображение.", variant: "destructive" });
+      return;
+    }
+    if (file.size > 5 * 1024 * 1024) {
+      toast({ title: "Файл слишком большой", description: "Максимальный размер — 5 МБ.", variant: "destructive" });
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      const dataUrl = ev.target?.result as string;
+      setStyle((s) => ({ ...s, logoUrl: dataUrl }));
+    };
+    reader.readAsDataURL(file);
+    if (logoFileRef.current) logoFileRef.current.value = "";
   };
 
   const handleSave = () => {
@@ -768,20 +793,118 @@ export default function Home() {
                 </div>
 
                 <div className="space-y-4 pt-4 border-t border-border">
-                  <Label>URL логотипа (необязательно)</Label>
-                  <div className="flex gap-3">
-                    <div className="flex-1 relative">
-                      <ImageIcon className="absolute left-3 top-3.5 w-5 h-5 text-muted-foreground" />
-                      <Input
-                        placeholder="https://example.com/logo.png"
-                        value={style.logoUrl || ""}
-                        onChange={(e) => setStyle((s) => ({ ...s, logoUrl: e.target.value }))}
-                        className="bg-foreground/[0.05] border-border h-12 pl-11 rounded-xl"
-                      />
-                    </div>
+                  <Label>Логотип в центре QR</Label>
+
+                  {/* Tab switcher */}
+                  <div className="flex gap-1 p-1 bg-foreground/[0.05] rounded-xl border border-border w-fit">
+                    <button
+                      onClick={() => setLogoTab("upload")}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                        logoTab === "upload"
+                          ? "bg-primary/20 text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <Upload className="w-3.5 h-3.5" /> Загрузить файл
+                    </button>
+                    <button
+                      onClick={() => setLogoTab("url")}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                        logoTab === "url"
+                          ? "bg-primary/20 text-foreground"
+                          : "text-muted-foreground hover:text-foreground"
+                      }`}
+                    >
+                      <LinkIcon className="w-3.5 h-3.5" /> По ссылке
+                    </button>
                   </div>
+
+                  {/* Hidden file input */}
+                  <input
+                    ref={logoFileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={handleLogoFile}
+                  />
+
+                  <AnimatePresence mode="wait">
+                    {logoTab === "upload" ? (
+                      <motion.div
+                        key="upload"
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.18 }}
+                      >
+                        {style.logoUrl?.startsWith("data:") ? (
+                          <div className="flex items-center gap-3 p-3 bg-foreground/[0.04] rounded-2xl border border-border">
+                            <img
+                              src={style.logoUrl}
+                              alt="logo"
+                              className="w-12 h-12 object-contain rounded-xl border border-border bg-foreground/[0.05]"
+                            />
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-medium">Логотип загружен</p>
+                              <p className="text-xs text-muted-foreground">Нажмите «Изменить» чтобы выбрать другой</p>
+                            </div>
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="rounded-lg border-border h-8 text-xs"
+                                onClick={() => logoFileRef.current?.click()}
+                              >
+                                Изменить
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 rounded-lg hover:bg-destructive/20 hover:text-destructive"
+                                onClick={() => setStyle((s) => ({ ...s, logoUrl: "" }))}
+                              >
+                                <X className="w-3.5 h-3.5" />
+                              </Button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button
+                            onClick={() => logoFileRef.current?.click()}
+                            className="w-full flex flex-col items-center gap-3 p-6 rounded-2xl border-2 border-dashed border-border hover:border-primary/50 hover:bg-primary/5 transition-all duration-200 group"
+                          >
+                            <div className="w-12 h-12 rounded-2xl bg-foreground/[0.06] flex items-center justify-center group-hover:bg-primary/15 transition-colors">
+                              <Upload className="w-5 h-5 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </div>
+                            <div className="text-center">
+                              <p className="text-sm font-medium">Нажмите для выбора файла</p>
+                              <p className="text-xs text-muted-foreground mt-0.5">PNG, JPG, SVG, WebP — до 5 МБ</p>
+                            </div>
+                          </button>
+                        )}
+                      </motion.div>
+                    ) : (
+                      <motion.div
+                        key="url"
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -4 }}
+                        transition={{ duration: 0.18 }}
+                      >
+                        <div className="relative">
+                          <ImageIcon className="absolute left-3 top-3.5 w-5 h-5 text-muted-foreground" />
+                          <Input
+                            placeholder="https://example.com/logo.png"
+                            value={style.logoUrl?.startsWith("data:") ? "" : (style.logoUrl || "")}
+                            onChange={(e) => setStyle((s) => ({ ...s, logoUrl: e.target.value }))}
+                            className="bg-foreground/[0.05] border-border h-12 pl-11 rounded-xl"
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+
                   {style.logoUrl && (
-                    <div className="space-y-4 p-4 bg-foreground/[0.04] rounded-2xl border border-border mt-4">
+                    <div className="space-y-4 p-4 bg-foreground/[0.04] rounded-2xl border border-border">
                       <div className="flex justify-between">
                         <Label>Размер логотипа</Label>
                         <span className="text-xs text-muted-foreground">{Math.round((style.logoSize || 0.2) * 100)}%</span>
@@ -793,6 +916,33 @@ export default function Home() {
                         value={[style.logoSize || 0.2]}
                         onValueChange={([v]) => setStyle((s) => ({ ...s, logoSize: v }))}
                         className="py-2"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                {/* Caption text */}
+                <div className="space-y-4 pt-4 border-t border-border">
+                  <div>
+                    <Label className="flex items-center gap-2">
+                      <Type className="w-4 h-4 text-muted-foreground" /> Подпись под QR-кодом
+                    </Label>
+                    <p className="text-xs text-muted-foreground mt-1">Текст появится ниже QR-кода и войдёт в экспорт</p>
+                  </div>
+                  <Input
+                    placeholder="Например: Сканируй для меню"
+                    value={style.caption || ""}
+                    onChange={(e) => setStyle((s) => ({ ...s, caption: e.target.value }))}
+                    className="bg-foreground/[0.05] border-border h-12 rounded-xl"
+                    maxLength={60}
+                  />
+                  {style.caption && (
+                    <div className="space-y-3 p-4 bg-foreground/[0.04] rounded-2xl border border-border">
+                      <Label>Цвет подписи</Label>
+                      <ColorPickerPopover
+                        color={style.captionColor || style.gradient?.colorStart || style.fgColor || "#8b5cf6"}
+                        onChange={(c) => setStyle((s) => ({ ...s, captionColor: c }))}
+                        label={style.captionColor || style.gradient?.colorStart || style.fgColor || "#8b5cf6"}
                       />
                     </div>
                   )}
