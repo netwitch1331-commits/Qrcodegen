@@ -1,6 +1,7 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { FAQ } from "@/components/sections/FAQ";
 import { QrPreview, type ExtendedQrStyle, type FrameStyle } from "@/components/qr/QrPreview";
 import { ColorPickerPopover } from "@/components/qr/ColorPickerPopover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -1033,6 +1034,8 @@ export default function Home() {
           </div>
         </div>
       </div>
+
+      <FAQ />
     </AppLayout>
   );
 }
