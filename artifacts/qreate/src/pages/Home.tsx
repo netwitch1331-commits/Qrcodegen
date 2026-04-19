@@ -1,7 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { useLocation } from "wouter";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { FAQ } from "@/components/sections/FAQ";
 import { QrPreview, type ExtendedQrStyle, type FrameStyle } from "@/components/qr/QrPreview";
 import { ColorPickerPopover } from "@/components/qr/ColorPickerPopover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -952,7 +951,7 @@ export default function Home() {
                 <div className="space-y-4 pt-4 border-t border-border">
                   <Label>Уровень коррекции ошибок</Label>
                   <p className="text-sm text-muted-foreground mb-4">
-                    Более высокий уровень позволяет читать QR-код даже при частичном перекрытии (например, логотипом).
+                    Более высокий уровень позволяет читать QR-код д��же при частичном перекрытии (например, логотипом).
                   </p>
                   <div className="grid grid-cols-4 gap-3">
                     {(["L", "M", "Q", "H"] as const).map((level) => (
@@ -1034,8 +1033,6 @@ export default function Home() {
           </div>
         </div>
       </div>
-
-      <FAQ />
     </AppLayout>
   );
 }
